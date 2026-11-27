@@ -1,0 +1,484 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:shadowshift/core/constants.dart';
+import 'package:shadowshift/domain/game/engine.dart';
+import 'package:shadowshift/domain/game/enums.dart';
+
+class VisualOptions {
+  const VisualOptions({
+    this.reducedMotion = false,
+    this.screenShake = true,
+    this.effectId = 'classic',
+    this.skinId = 'aurora',
+  });
+
+  final bool reducedMotion;
+  final bool screenShake;
+  final String effectId;
+  final String skinId;
+}
+
+List<Color> _fadeColors(Color base) => List<Color>.generate(
+      17,
+      (i) => base.withValues(alpha: i / 16),
+    );
+
+/// Draws the whole world in one canvas pass. Keeping rendering in a single
+/// painter avoids hundreds of Flame components and keeps 60fps easy to hold.
+class ShadowPainter extends CustomPainter {
+  ShadowPainter(this.engine, this.options);
+
+  final GameEngine engine;
+  final VisualOptions options;
+  int _lastSwitches = 0;
+  double _switchPulse = 0;
+  double _shake = 0;
+
+  // Reusable paint objects and precomputed colours/shaders. Canvas painting is
+  // synchronous, so mutating these between draw calls is safe and avoids
+  // allocating Color/Paint/gradient objects 60 times a second.
+  static const _blur18 = MaskFilter.blur(BlurStyle.normal, 18);
+  static const _blur14 = MaskFilter.blur(BlurStyle.normal, 14);
+  static const _blur10 = MaskFilter.blur(BlurStyle.normal, 10);
+
+  static final Map<Dimension, Color> _gridColors = {
+    Dimension.light: AppColors.cyan.withValues(alpha: 0.075),
+    Dimension.shadow: AppColors.violet.withValues(alpha: 0.075),
+  };
+  static final Map<Dimension, Color> _laneColors = {
+    Dimension.light: AppColors.cyan.withValues(alpha: 0.1),
+    Dimension.shadow: AppColors.violet.withValues(alpha: 0.1),
+  };
+  static final LinearGradient _lightBackgroundGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: const [
+      Color(0xFF070B1A),
+      Color(0xFF0B1428),
+      Color(0xFF080A17),
+    ],
+  );
+  static final LinearGradient _shadowBackgroundGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: const [
+      Color(0xFF0B071A),
+      Color(0xFF150C2B),
+      Color(0xFF080715),
+    ],
+  );
+  static final LinearGradient _lightLaneGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Colors.transparent, _laneColors[Dimension.light]!, Colors.transparent],
+  );
+  static final LinearGradient _shadowLaneGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Colors.transparent, _laneColors[Dimension.shadow]!, Colors.transparent],
+  );
+
+  static final Map<Dimension, Color> _obstacleGlowColors = {
+    Dimension.light: AppColors.cyan.withValues(alpha: 0.16),
+    Dimension.shadow: AppColors.violet.withValues(alpha: 0.16),
+  };
+  static final Map<Dimension, List<Color>> _obstacleFillColors = {
+    Dimension.light: [
+      AppColors.cyan.withValues(alpha: 0.36),
+      AppColors.cyan.withValues(alpha: 0.09),
+      AppColors.cyan.withValues(alpha: 0.24),
+    ],
+    Dimension.shadow: [
+      AppColors.violet.withValues(alpha: 0.36),
+      AppColors.violet.withValues(alpha: 0.09),
+      AppColors.violet.withValues(alpha: 0.24),
+    ],
+  };
+  static final LinearGradient _lightObstacleGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: _obstacleFillColors[Dimension.light]!,
+  );
+  static final LinearGradient _shadowObstacleGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: _obstacleFillColors[Dimension.shadow]!,
+  );
+  static final Map<Dimension, Color> _obstacleStrokeColors = {
+    Dimension.light: AppColors.cyan.withValues(alpha: 0.9),
+    Dimension.shadow: AppColors.violet.withValues(alpha: 0.9),
+  };
+  static final Map<Dimension, Color> _obstacleLineColors = {
+    Dimension.light: AppColors.cyan.withValues(alpha: 0.42),
+    Dimension.shadow: AppColors.violet.withValues(alpha: 0.42),
+  };
+
+  static final Map<Dimension, Color> _orbGlowActive = {
+    Dimension.light: AppColors.gold.withValues(alpha: 0.16),
+    Dimension.shadow: AppColors.pink.withValues(alpha: 0.16),
+  };
+  static final Map<Dimension, Color> _orbGlowDim = {
+    Dimension.light: AppColors.gold.withValues(alpha: 0.16 * 0.32),
+    Dimension.shadow: AppColors.pink.withValues(alpha: 0.16 * 0.32),
+  };
+  static final Map<Dimension, Color> _orbCoreActive = {
+    Dimension.light: AppColors.gold,
+    Dimension.shadow: AppColors.pink,
+  };
+  static final Map<Dimension, Color> _orbCoreDim = {
+    Dimension.light: AppColors.gold.withValues(alpha: 0.32),
+    Dimension.shadow: AppColors.pink.withValues(alpha: 0.32),
+  };
+  static final Color _orbSpark = Colors.white.withValues(alpha: 0.9);
+  static final Color _orbSparkDim = Colors.white.withValues(alpha: 0.9 * 0.32);
+
+  static final Map<PowerUpKind, Color> _powerCoreColors = {
+    PowerUpKind.shield: AppColors.cyan,
+    PowerUpKind.magnet: AppColors.gold,
+    PowerUpKind.slow: AppColors.blue,
+    PowerUpKind.double: AppColors.pink,
+  };
+  static final Map<PowerUpKind, Color> _powerGlowColors = {
+    for (final entry in _powerCoreColors.entries)
+      entry.key: entry.value.withValues(alpha: 0.25),
+  };
+  static final Map<PowerUpKind, Color> _powerFillColors = {
+    for (final entry in _powerCoreColors.entries)
+      entry.key: entry.value.withValues(alpha: 0.28),
+  };
+
+  static final Map<Dimension, Color> _playerGlowColors = {
+    Dimension.light: AppColors.cyan.withValues(alpha: 0.2),
+    Dimension.shadow: AppColors.violet.withValues(alpha: 0.2),
+  };
+  static final Map<Dimension, Color> _playerBodyColors = {
+    Dimension.light: AppColors.cyan.withValues(alpha: 0.92),
+    Dimension.shadow: AppColors.violet.withValues(alpha: 0.92),
+  };
+  static final Map<Dimension, List<Color>> _playerTrailColors = {
+    Dimension.light: [
+      for (var i = 1; i <= 3; i++) AppColors.cyan.withValues(alpha: 0.25 / i)
+    ],
+    Dimension.shadow: [
+      for (var i = 1; i <= 3; i++) AppColors.violet.withValues(alpha: 0.25 / i)
+    ],
+  };
+  static final Color _playerStrokeColor = Colors.white.withValues(alpha: 0.85);
+  static final Color _shieldColor = AppColors.cyan.withValues(alpha: 0.85);
+  static final Color _focusColor = AppColors.gold.withValues(alpha: 0.7);
+
+  static final List<Color> _dangerFade = _fadeColors(AppPalette.danger);
+  static final List<Color> _goldFade = _fadeColors(AppPalette.gold);
+  static final List<Color> _violetFade = _fadeColors(AppPalette.violet);
+
+  static final Path _powerDiamond = Path()
+    ..moveTo(0, -21)
+    ..lineTo(21, 0)
+    ..lineTo(0, 21)
+    ..lineTo(-21, 0)
+    ..close();
+  static final Path _playerBody = Path()
+    ..moveTo(GameConfig.playerRadius * 1.35, 0)
+    ..lineTo(-GameConfig.playerRadius * 0.85, -GameConfig.playerRadius * 1.15)
+    ..lineTo(-GameConfig.playerRadius * 0.45, 0)
+    ..lineTo(-GameConfig.playerRadius * 0.85, GameConfig.playerRadius * 1.15)
+    ..close();
+
+  final Paint _backgroundPaint = Paint();
+  final Paint _gridPaint = Paint()..strokeWidth = 1.2;
+  final Paint _lanePaint = Paint();
+  final Paint _skylinePaint = Paint()
+    ..color = const Color(0xFF11152D).withValues(alpha: 0.55);
+  Shader? _backgroundShader;
+  Dimension? _backgroundShaderDimension;
+  double? _backgroundShaderHeight;
+  Shader? _laneShader;
+  Dimension? _laneShaderDimension;
+  double? _laneShaderHorizon;
+
+  final Paint _obstacleGlowPaint = Paint()..maskFilter = _blur18;
+  final Paint _obstacleFillPaint = Paint();
+  final Paint _obstacleStrokePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 3;
+  final Paint _obstacleLinePaint = Paint()..strokeWidth = 1.5;
+  final Paint _obstacleDotPaint = Paint();
+
+  final Paint _orbGlowPaint = Paint()..maskFilter = _blur10;
+  final Paint _orbCorePaint = Paint();
+  final Paint _orbSparkPaint = Paint();
+
+  final Paint _powerGlowPaint = Paint()..maskFilter = _blur14;
+  final Paint _powerFillPaint = Paint();
+  final Paint _powerStrokePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2.5;
+  final Map<String, TextPainter> _powerLabels = <String, TextPainter>{};
+
+  final Paint _playerGlowPaint = Paint()..maskFilter = _blur18;
+  final Paint _playerTrailPaint = Paint();
+  final Paint _playerBodyPaint = Paint();
+  final Paint _playerStrokePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2;
+  final Paint _skinPaint = Paint();
+  final Paint _shieldPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2.5;
+  final Paint _focusPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.5;
+
+  final Paint _particlePaint = Paint();
+  final Paint _pulsePaint = Paint()..style = PaintingStyle.stroke;
+
+  static Color get _cyan => AppColors.cyan;
+  static Color get _violet => AppColors.violet;
+
+  Color get _skinColor => switch (options.skinId) {
+        'inferno' => AppColors.pink,
+        'toxic' => const Color(0xFF9DFF5B),
+        'frost' => const Color(0xFF9DEBFF),
+        _ => _cyan,
+      };
+
+  Color dimensionColor(Dimension dimension) => dimension.isLight ? _cyan : _violet;
+
+  void triggerShake() => _shake = 1;
+
+  /// Advances visual timers by real elapsed time so effects last the same
+  /// wall-clock duration on 60Hz and 120Hz displays.
+  void tick(double dt) {
+    if (engine.switches != _lastSwitches) {
+      _lastSwitches = engine.switches;
+      _switchPulse = 1;
+    }
+    if (_shake > 0) _shake = math.max(0, _shake - dt * 2.7);
+    if (_switchPulse > 0) _switchPulse = math.max(0, _switchPulse - dt * 2.1);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scaleX = size.width / GameConfig.worldWidth;
+    final scaleY = size.height / engine.worldHeight;
+    canvas.save();
+    canvas.scale(scaleX, scaleY);
+
+    if (_shake > 0 && options.screenShake && !options.reducedMotion) {
+      final amount = _shake * 12;
+      canvas.translate(math.sin(engine.elapsed * 91) * amount, math.cos(engine.elapsed * 77) * amount);
+    }
+
+    _drawBackground(canvas);
+    _drawOrbs(canvas);
+    _drawPowerUps(canvas);
+    _drawObstacles(canvas);
+    _drawParticles(canvas);
+    _drawPlayer(canvas);
+    _drawSwitchPulse(canvas);
+    canvas.restore();
+  }
+
+  void _drawBackground(Canvas canvas) {
+    final rect = Rect.fromLTWH(0, 0, GameConfig.worldWidth, engine.worldHeight);
+    if (_backgroundShader == null ||
+        _backgroundShaderDimension != engine.dimension ||
+        _backgroundShaderHeight != engine.worldHeight) {
+      final gradient = engine.dimension.isLight
+          ? _lightBackgroundGradient
+          : _shadowBackgroundGradient;
+      _backgroundShader = gradient.createShader(rect);
+      _backgroundShaderDimension = engine.dimension;
+      _backgroundShaderHeight = engine.worldHeight;
+    }
+    _backgroundPaint.shader = _backgroundShader;
+    canvas.drawRect(rect, _backgroundPaint);
+
+    final horizon = engine.playerY;
+    _gridPaint.color = _gridColors[engine.dimension]!;
+    final scroll = engine.elapsed * 110;
+    for (var i = 0; i < 16; i++) {
+      final x = ((i * 92 - scroll) % 1472) - 120;
+      canvas.drawLine(Offset(x, 0), Offset(x - 70, engine.worldHeight), _gridPaint);
+    }
+    for (var i = 0; i < 12; i++) {
+      final y = ((i * 118 + scroll * 0.16) % (engine.worldHeight + 200)) - 100;
+      canvas.drawLine(Offset(0, y), Offset(GameConfig.worldWidth, y), _gridPaint);
+    }
+    // Central lane highlight. The horizon is fixed for a run, so cache it.
+    final laneRect = Rect.fromLTWH(0, horizon - 130, GameConfig.worldWidth, 260);
+    if (_laneShader == null ||
+        _laneShaderDimension != engine.dimension ||
+        _laneShaderHorizon != horizon) {
+      final gradient = engine.dimension.isLight ? _lightLaneGradient : _shadowLaneGradient;
+      _laneShader = gradient.createShader(laneRect);
+      _laneShaderDimension = engine.dimension;
+      _laneShaderHorizon = horizon;
+    }
+    _lanePaint.shader = _laneShader;
+    canvas.drawRect(laneRect, _lanePaint);
+
+    // Distant skyline silhouettes for depth.
+    for (var i = 0; i < 13; i++) {
+      final height = 60.0 + ((i * 37) % 130);
+      canvas.drawRect(
+        Rect.fromLTWH(i * 84.0 - (scroll * 0.22 % 84), horizon - height - 55, 62, height),
+        _skylinePaint,
+      );
+    }
+  }
+
+  void _drawObstacles(Canvas canvas) {
+    for (final obstacle in engine.obstacles) {
+      if (obstacle.destroyed) continue;
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(obstacle.left, obstacle.y, obstacle.width, obstacle.height),
+        const Radius.circular(13),
+      );
+      _obstacleGlowPaint.color = _obstacleGlowColors[obstacle.dimension]!;
+      canvas.drawRRect(rect.inflate(7), _obstacleGlowPaint);
+      final gradient = obstacle.dimension.isLight
+          ? _lightObstacleGradient
+          : _shadowObstacleGradient;
+      _obstacleFillPaint.shader = gradient.createShader(rect.outerRect);
+      canvas.drawRRect(rect, _obstacleFillPaint);
+      _obstacleStrokePaint.color = _obstacleStrokeColors[obstacle.dimension]!;
+      canvas.drawRRect(rect, _obstacleStrokePaint);
+      _obstacleLinePaint.color = _obstacleLineColors[obstacle.dimension]!;
+      for (var y = obstacle.y + 18; y < obstacle.y + obstacle.height - 8; y += 26) {
+        canvas.drawLine(
+          Offset(obstacle.left + 9, y),
+          Offset(obstacle.right - 9, y),
+          _obstacleLinePaint,
+        );
+      }
+      _obstacleDotPaint.color = dimensionColor(obstacle.dimension);
+      canvas.drawCircle(
+        Offset(obstacle.x, obstacle.y + obstacle.height / 2),
+        6,
+        _obstacleDotPaint,
+      );
+    }
+  }
+
+  void _drawOrbs(Canvas canvas) {
+    final magnetActive = engine.hasEffect(PowerUpKind.magnet);
+    for (final orb in engine.orbEntities) {
+      final dimension = orb.dimension;
+      final active = dimension == engine.dimension || magnetActive;
+      final center = Offset(orb.x, orb.y);
+      _orbGlowPaint.color = (active ? _orbGlowActive : _orbGlowDim)[dimension]!;
+      canvas.drawCircle(center, GameConfig.orbRadius * (active ? 2.1 : 1.5), _orbGlowPaint);
+      _orbCorePaint.color = (active ? _orbCoreActive : _orbCoreDim)[dimension]!;
+      canvas.drawCircle(center, GameConfig.orbRadius, _orbCorePaint);
+      _orbSparkPaint.color = active ? _orbSpark : _orbSparkDim;
+      canvas.drawCircle(center, GameConfig.orbRadius * 0.45, _orbSparkPaint);
+    }
+  }
+
+  void _drawPowerUps(Canvas canvas) {
+    for (final powerUp in engine.powerUps) {
+      final kind = powerUp.kind;
+      final center = Offset(powerUp.x, powerUp.y);
+      _powerGlowPaint.color = _powerGlowColors[kind]!;
+      _powerFillPaint.color = _powerFillColors[kind]!;
+      _powerStrokePaint.color = _powerCoreColors[kind]!;
+      canvas.save();
+      canvas.translate(center.dx, center.dy);
+      canvas.drawPath(_powerDiamond, _powerGlowPaint);
+      canvas.drawPath(_powerDiamond, _powerFillPaint);
+      canvas.drawPath(_powerDiamond, _powerStrokePaint);
+      canvas.restore();
+
+      final label = switch (kind) {
+        PowerUpKind.shield => 'S',
+        PowerUpKind.magnet => 'M',
+        PowerUpKind.slow => 'T',
+        PowerUpKind.double => '2',
+      };
+      final painter = _powerLabels.putIfAbsent(
+        label,
+        () => TextPainter(
+          text: TextSpan(
+            text: label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          textAlign: TextAlign.center,
+          textDirection: TextDirection.ltr,
+        )..layout(),
+      );
+      painter.paint(canvas, center - Offset(painter.width / 2, painter.height / 2));
+    }
+  }
+
+  void _drawPlayer(Canvas canvas) {
+    final dimension = engine.dimension;
+    final x = GameConfig.playerX;
+    final y = engine.playerY;
+    final radius = GameConfig.playerRadius;
+    _playerGlowPaint.color = _playerGlowColors[dimension]!;
+    canvas.drawCircle(Offset(x, y), radius * 2.2, _playerGlowPaint);
+    final trail = options.effectId == 'comet' ? 3 : 1;
+    final trailColors = _playerTrailColors[dimension]!;
+    for (var i = 1; i <= trail; i++) {
+      _playerTrailPaint.color = trailColors[i - 1];
+      canvas.drawCircle(
+        Offset(x - i * 26, y),
+        radius * (0.55 - i * 0.08),
+        _playerTrailPaint,
+      );
+    }
+    _playerBodyPaint.color = _playerBodyColors[dimension]!;
+    _playerStrokePaint.color = _playerStrokeColor;
+    canvas.save();
+    canvas.translate(x, y);
+    canvas.drawPath(_playerBody, _playerBodyPaint);
+    canvas.drawPath(_playerBody, _playerStrokePaint);
+    canvas.restore();
+    _skinPaint.color = _skinColor;
+    canvas.drawCircle(Offset(x + 2, y), radius * 0.26, _skinPaint);
+    if (engine.hasShield) {
+      _shieldPaint.color = _shieldColor;
+      canvas.drawCircle(Offset(x, y), radius * 1.7, _shieldPaint);
+    }
+    if (engine.focusing) {
+      _focusPaint.color = _focusColor;
+      canvas.drawCircle(Offset(x, y), radius * 2.1, _focusPaint);
+    }
+  }
+
+  void _drawParticles(Canvas canvas) {
+    for (final particle in engine.particles) {
+      final fade = particle.color == AppPalette.danger
+          ? _dangerFade
+          : particle.color == AppPalette.gold
+              ? _goldFade
+              : _violetFade;
+      final alpha = (particle.life * 1.6).clamp(0.0, 1.0);
+      final bucket = (alpha * 16).round().clamp(0, 16);
+      _particlePaint.color = fade[bucket];
+      canvas.drawCircle(Offset(particle.x, particle.y), particle.size, _particlePaint);
+    }
+  }
+
+  void _drawSwitchPulse(Canvas canvas) {
+    if (_switchPulse <= 0 || options.reducedMotion) return;
+    final progress = 1 - _switchPulse;
+    _pulsePaint.color =
+        dimensionColor(engine.dimension).withValues(alpha: _switchPulse * 0.55);
+    _pulsePaint.strokeWidth = 3 * _switchPulse;
+    canvas.drawCircle(
+      Offset(GameConfig.playerX, engine.playerY),
+      30 + progress * 220,
+      _pulsePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant ShadowPainter oldDelegate) => true;
+}
