@@ -17,7 +17,7 @@ class SettingsScreen extends ConsumerWidget {
       title: 'SETTINGS',
       subtitle: 'Saved locally on this device',
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+        padding: AppLayout.pagePadding,
         child: Column(
           children: [
             GlassCard(

@@ -21,7 +21,7 @@ class MissionsScreen extends ConsumerWidget {
       title: 'MISSIONS',
       subtitle: 'Local date · ${dateKey(now)}',
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+        padding: AppLayout.pagePadding,
         child: Column(
           children: [
             GlassCard(
@@ -30,14 +30,23 @@ class MissionsScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    children: const [
-                      Icon(Icons.calendar_today, color: AppColors.gold),
-                      SizedBox(width: 10),
-                      Text('DAILY CHALLENGE',
-                          style: TextStyle(
+                    children: [
+                      const Icon(Icons.calendar_today, color: AppColors.gold),
+                      const SizedBox(width: AppLayout.sm),
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'DAILY CHALLENGE',
+                            style: const TextStyle(
                               fontWeight: FontWeight.w900,
                               letterSpacing: 1.8,
-                              color: AppColors.gold)),
+                              color: AppColors.gold,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),

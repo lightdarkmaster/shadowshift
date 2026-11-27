@@ -22,7 +22,7 @@ class ChallengeSelectionScreen extends ConsumerWidget {
       title: 'CHALLENGES',
       subtitle: 'Complete in order to unlock the next',
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+        padding: AppLayout.pagePadding,
         child: Column(
           children: [
             for (final challenge in Challenges.all)

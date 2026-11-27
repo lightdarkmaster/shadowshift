@@ -28,7 +28,7 @@ class ModeSelectionScreen extends ConsumerWidget {
       title: 'SELECT MODE',
       subtitle: 'Choose your protocol',
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+        padding: AppLayout.pagePadding,
         child: Column(
           children: [
             for (final mode in modes)
