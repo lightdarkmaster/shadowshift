@@ -11,12 +11,19 @@ class VisualOptions {
     this.screenShake = true,
     this.effectId = 'classic',
     this.skinId = 'aurora',
+    this.characterId = 'nyx',
+    this.characterColor = AppColors.cyan,
   });
 
   final bool reducedMotion;
   final bool screenShake;
   final String effectId;
   final String skinId;
+
+  /// The unlocked runner used for this run. Its colour and emblem are drawn
+  /// on the player so the selection screen and gameplay stay in sync.
+  final String characterId;
+  final Color characterColor;
 }
 
 List<Color> _fadeColors(Color base) => List<Color>.generate(
@@ -27,10 +34,16 @@ List<Color> _fadeColors(Color base) => List<Color>.generate(
 /// Draws the whole world in one canvas pass. Keeping rendering in a single
 /// painter avoids hundreds of Flame components and keeps 60fps easy to hold.
 class ShadowPainter extends CustomPainter {
-  ShadowPainter(this.engine, this.options);
+  ShadowPainter(this.engine, this.options) {
+    _characterGlow = options.characterColor.withValues(alpha: 0.22);
+    _characterAccent = options.characterColor.withValues(alpha: 0.9);
+    _echoPaint.color = options.characterColor.withValues(alpha: 0.2);
+  }
 
   final GameEngine engine;
   final VisualOptions options;
+  late final Color _characterGlow;
+  late final Color _characterAccent;
   int _lastSwitches = 0;
   double _switchPulse = 0;
   double _shake = 0;
@@ -148,10 +161,6 @@ class ShadowPainter extends CustomPainter {
       entry.key: entry.value.withValues(alpha: 0.28),
   };
 
-  static final Map<Dimension, Color> _playerGlowColors = {
-    Dimension.light: AppColors.cyan.withValues(alpha: 0.2),
-    Dimension.shadow: AppColors.violet.withValues(alpha: 0.2),
-  };
   static final Map<Dimension, Color> _playerBodyColors = {
     Dimension.light: AppColors.cyan.withValues(alpha: 0.92),
     Dimension.shadow: AppColors.violet.withValues(alpha: 0.92),
@@ -223,6 +232,8 @@ class ShadowPainter extends CustomPainter {
     ..style = PaintingStyle.stroke
     ..strokeWidth = 2;
   final Paint _skinPaint = Paint();
+  final Paint _characterPaint = Paint()..style = PaintingStyle.stroke;
+  final Paint _echoPaint = Paint();
   final Paint _shieldPaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 2.5;
@@ -421,7 +432,9 @@ class ShadowPainter extends CustomPainter {
     final x = GameConfig.playerX;
     final y = engine.playerY;
     final radius = GameConfig.playerRadius;
-    _playerGlowPaint.color = _playerGlowColors[dimension]!;
+    // The runner's own colour gives each unlocked character a distinct glow,
+    // while the body colour still communicates the active dimension.
+    _playerGlowPaint.color = _characterGlow;
     canvas.drawCircle(Offset(x, y), radius * 2.2, _playerGlowPaint);
     final trail = options.effectId == 'comet' ? 3 : 1;
     final trailColors = _playerTrailColors[dimension]!;
@@ -433,6 +446,16 @@ class ShadowPainter extends CustomPainter {
         _playerTrailPaint,
       );
     }
+    // ECHO leaves faint after-images of its actual body shape behind.
+    if (options.characterId == 'echo' && !options.reducedMotion) {
+      for (var i = 1; i <= 2; i++) {
+        canvas.save();
+        canvas.translate(x - i * 22, y + (i.isOdd ? -8 : 8));
+        canvas.drawPath(_playerBody, _echoPaint);
+        canvas.restore();
+      }
+    }
+
     _playerBodyPaint.color = _playerBodyColors[dimension]!;
     _playerStrokePaint.color = _playerStrokeColor;
     canvas.save();
@@ -442,6 +465,33 @@ class ShadowPainter extends CustomPainter {
     canvas.restore();
     _skinPaint.color = _skinColor;
     canvas.drawCircle(Offset(x + 2, y), radius * 0.26, _skinPaint);
+
+    _characterPaint.color = _characterAccent;
+    _characterPaint.strokeWidth = 2;
+    switch (options.characterId) {
+      case 'flux':
+        canvas.drawCircle(Offset(x + 2, y - radius * 0.34), radius * 0.13, _characterPaint);
+        canvas.drawCircle(Offset(x + 2, y + radius * 0.34), radius * 0.13, _characterPaint);
+        break;
+      case 'echo':
+        canvas.drawCircle(Offset(x + 2, y), radius * 0.42, _characterPaint);
+        break;
+      case 'spectre':
+        canvas.drawCircle(Offset(x, y), radius * 1.32, _characterPaint);
+        break;
+      case 'zenith':
+        canvas.drawLine(
+          Offset(x + radius * 0.35, y - radius * 0.35),
+          Offset(x + radius * 0.9, y),
+          _characterPaint,
+        );
+        canvas.drawLine(
+          Offset(x + radius * 0.35, y + radius * 0.35),
+          Offset(x + radius * 0.9, y),
+          _characterPaint,
+        );
+        break;
+    }
     if (engine.hasShield) {
       _shieldPaint.color = _shieldColor;
       canvas.drawCircle(Offset(x, y), radius * 1.7, _shieldPaint);

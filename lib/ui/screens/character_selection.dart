@@ -13,6 +13,7 @@ class CharacterSelectionScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
+    final active = Catalog.find(Catalog.characters, profile.character);
     return AppScaffold(
       title: 'RUNNERS',
       subtitle: 'Every runner changes how you play',
@@ -29,12 +30,19 @@ class CharacterSelectionScreen extends ConsumerWidget {
                     height: 64,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [AppColors.cyan, AppColors.violet.withValues(alpha: 0.3)],
+                      color: active.color.withValues(alpha: 0.14),
+                      border: Border.all(
+                        color: active.color.withValues(alpha: 0.55),
+                        width: 2,
                       ),
-                      boxShadow: [BoxShadow(color: AppColors.cyan.withValues(alpha: 0.4), blurRadius: 20)],
+                      boxShadow: [
+                        BoxShadow(
+                          color: active.color.withValues(alpha: 0.35),
+                          blurRadius: 20,
+                        ),
+                      ],
                     ),
-                    child: const Icon(Icons.person, size: 32, color: Colors.white),
+                    child: Icon(active.icon, size: 32, color: active.color),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -42,13 +50,22 @@ class CharacterSelectionScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          Catalog.find(Catalog.characters, profile.character).name,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w900, fontSize: 19, letterSpacing: 2),
+                          active.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 19,
+                            letterSpacing: 2,
+                            color: active.color,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         const Text('ACTIVE RUNNER',
                             style: TextStyle(fontSize: 10, color: AppColors.muted, letterSpacing: 1.5)),
+                        const SizedBox(height: 2),
+                        Text(
+                          active.description,
+                          style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                        ),
                       ],
                     ),
                   ),
@@ -110,6 +127,7 @@ class CharacterSelectionScreen extends ConsumerWidget {
                             if (selected) return;
                             if (owned) {
                               ref.read(profileProvider.notifier).selectCharacter(character.id);
+                              AudioService.instance.ui();
                             } else if (ref
                                 .read(profileProvider.notifier)
                                 .purchaseAndSelect(character.id, character.price, 'character')) {

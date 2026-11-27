@@ -70,22 +70,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        width: 122,
-                        height: 122,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            colors: [AppColors.cyan, AppColors.violet],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.cyan.withValues(alpha: 0.5),
-                              blurRadius: 45,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.flash_on, size: 62, color: Colors.white),
+                      Image.asset(
+                        'assets/images/shadowshift_logo.png',
+                        width: 136,
+                        height: 136,
+                        fit: BoxFit.contain,
                       ),
                       const SizedBox(height: AppLayout.xl + AppLayout.md),
                       FittedBox(

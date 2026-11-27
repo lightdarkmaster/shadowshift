@@ -56,6 +56,15 @@ class MainMenu extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           SizedBox(height: wide ? AppLayout.xl : AppLayout.sm),
+                          Center(
+                            child: Image.asset(
+                              'assets/images/shadowshift_logo.png',
+                              width: wide ? 104 : compact ? 72 : 88,
+                              height: wide ? 104 : compact ? 72 : 88,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          const SizedBox(height: AppLayout.sm),
                           FittedBox(
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.center,

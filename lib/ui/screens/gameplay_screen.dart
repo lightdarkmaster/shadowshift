@@ -63,11 +63,17 @@ class _GameplayScreenState extends ConsumerState<GameplayScreen>
       700,
       1600,
     );
+    // Only an unlocked runner may contribute perks or visuals to a run.
+    final character = profile.unlockedCharacters.contains(profile.character)
+        ? Catalog.find(Catalog.characters, profile.character)
+        : Catalog.characters.first;
     options = VisualOptions(
       reducedMotion: settings.reducedMotion,
       screenShake: settings.screenShake,
       effectId: profile.effect,
       skinId: profile.skin,
+      characterId: character.id,
+      characterColor: character.color,
     );
     engine = GameEngine(
       mode: widget.launch.mode,
@@ -75,7 +81,7 @@ class _GameplayScreenState extends ConsumerState<GameplayScreen>
       worldHeight: worldHeight,
       objective: widget.launch.objective,
       loadout: Catalog.loadout(
-        characterId: profile.character,
+        characterId: character.id,
         abilityId: profile.ability,
       ),
     );
