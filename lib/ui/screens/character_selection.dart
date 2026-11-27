@@ -16,11 +16,8 @@ class CharacterSelectionScreen extends ConsumerWidget {
     return AppScaffold(
       title: 'RUNNERS',
       subtitle: 'Every runner changes how you play',
-      actions: [
-        StatChip(icon: Icons.bolt, value: '${profile.coins}', color: AppColors.gold),
-      ],
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+        padding: AppLayout.pagePadding,
         child: Column(
           children: [
             GlassCard(
@@ -98,7 +95,7 @@ class CharacterSelectionScreen extends ConsumerWidget {
                       ),
                       const SizedBox(width: 8),
                       SizedBox(
-                        width: 86,
+                        width: 100,
                         child: NeonButton(
                           label: selected
                               ? 'ACTIVE'
@@ -108,7 +105,7 @@ class CharacterSelectionScreen extends ConsumerWidget {
                           compact: true,
                           secondary: selected,
                           color: character.color,
-                          enabled: !selected,
+                          selected: selected,
                           onPressed: () {
                             if (selected) return;
                             if (owned) {

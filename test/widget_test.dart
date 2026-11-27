@@ -1,3 +1,6 @@
+import 'dart:ui' show Size;
+
+import 'package:flutter/material.dart' show Icons;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shadowshift/data/repositories/storage_repository.dart';
@@ -35,6 +38,64 @@ void main() {
     await advance(tester, const Duration(milliseconds: 600));
     expect(find.text('ENTER THE SHIFT'), findsOneWidget);
     expect(find.text('COMMAND DECK'), findsOneWidget);
+  });
+
+  testWidgets('main menu fits a narrow phone without overflow', (tester) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await pumpApp(tester);
+    await advance(tester, const Duration(seconds: 4));
+    expect(find.text('COMMAND DECK'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // Every command-deck tile stays reachable via scrolling on short screens.
+    await tester.scrollUntilVisible(find.text('SETTINGS'), 160);
+    expect(find.text('SETTINGS'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('command deck screens fit a narrow phone without overflow',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await pumpApp(tester);
+    await advance(tester, const Duration(seconds: 4));
+
+    for (final label in [
+      'CHARACTERS',
+      'SHOP',
+      'ACHIEVEMENTS',
+      'MISSIONS',
+      'STATS',
+      'SETTINGS',
+    ]) {
+      await tester.scrollUntilVisible(find.text(label), 160);
+      await tester.tap(find.text(label));
+      await advance(tester, const Duration(milliseconds: 500));
+      expect(tester.takeException(), isNull, reason: '$label overflowed');
+      await tester.tap(find.byIcon(Icons.arrow_back_ios_new));
+      await advance(tester, const Duration(milliseconds: 400));
+    }
+  });
+
+  testWidgets('mode and challenge screens fit a narrow phone', (tester) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await pumpApp(tester);
+    await advance(tester, const Duration(seconds: 4));
+    await tester.tap(find.text('ENTER THE SHIFT'));
+    await advance(tester, const Duration(milliseconds: 500));
+    expect(tester.takeException(), isNull, reason: 'mode selection overflowed');
+
+    await tester.tap(find.text('CHALLENGE'));
+    await advance(tester, const Duration(milliseconds: 500));
+    expect(tester.takeException(), isNull, reason: 'challenges overflowed');
   });
 
   testWidgets('main menu opens mode selection', (tester) async {

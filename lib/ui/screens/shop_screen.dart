@@ -18,9 +18,6 @@ class ShopScreen extends ConsumerWidget {
       child: AppScaffold(
         title: 'SHOP',
         subtitle: 'Earned through gameplay only',
-        actions: [
-          StatChip(icon: Icons.bolt, value: '${profile.coins}', color: AppColors.gold),
-        ],
         body: Column(
           children: [
             const TabBar(
@@ -80,7 +77,7 @@ class _ItemList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
+      padding: AppLayout.pagePadding,
       child: Column(
         children: items.map((item) {
           final isOwned = owned.contains(item.id);
@@ -120,13 +117,13 @@ class _ItemList extends ConsumerWidget {
                   ),
                   const SizedBox(width: 8),
                   SizedBox(
-                    width: 86,
+                    width: 100,
                     child: NeonButton(
                       label: selected ? 'EQUIPPED' : isOwned ? 'EQUIP' : '${item.price}',
                       compact: true,
                       secondary: selected,
                       color: item.color,
-                      enabled: !selected,
+                      selected: selected,
                       onPressed: () {
                         final profile = ref.read(profileProvider);
                         final notifier = ref.read(profileProvider.notifier);

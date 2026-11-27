@@ -45,7 +45,7 @@ class GameOverScreen extends ConsumerWidget {
         StatChip(icon: Icons.bolt, value: '${summary.coins}', color: AppColors.gold),
       ],
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(18, 6, 18, 28),
+        padding: AppLayout.pagePadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -210,28 +210,37 @@ class _StatRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 14,
-      alignment: WrapAlignment.center,
-      children: stats
-          .map(
-            (stat) => SizedBox(
-              width: 88,
-              child: Column(
-                children: [
-                  Icon(stat.icon, size: 19, color: AppColors.cyan),
-                  const SizedBox(height: 5),
-                  Text(stat.value,
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                  Text(stat.label,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 9, color: AppColors.muted, letterSpacing: 0.6)),
-                ],
+    return ResponsiveTileWrap(
+      minTileWidth: 88,
+      tileHeight: 78,
+      children: [
+        for (final stat in stats)
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(stat.icon, size: 19, color: AppColors.cyan),
+              const SizedBox(height: AppLayout.xs),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  stat.value,
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                ),
               ),
-            ),
-          )
-          .toList(),
+              Text(
+                stat.label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppColors.muted,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ],
+          ),
+      ],
     );
   }
 }

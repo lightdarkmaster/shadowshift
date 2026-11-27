@@ -17,7 +17,7 @@ class AchievementsScreen extends ConsumerWidget {
       title: 'ACHIEVEMENTS',
       subtitle: '$unlocked of ${Achievements.all.length} unlocked',
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+        padding: AppLayout.pagePadding,
         child: Column(
           children: [
             ClipRRect(

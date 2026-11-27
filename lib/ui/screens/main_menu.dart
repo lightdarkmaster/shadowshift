@@ -38,52 +38,79 @@ class MainMenu extends ConsumerWidget {
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final wide = constraints.maxWidth > 620;
+                final contentWidth = (constraints.maxWidth - AppLayout.gutter * 2)
+                    .clamp(0.0, AppLayout.maxContentWidth)
+                    .toDouble();
+                final compact = contentWidth < 360;
+                final wide = contentWidth >= 520;
+
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppLayout.gutter,
+                    vertical: AppLayout.md,
+                  ),
                   child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 620),
+                    child: SizedBox(
+                      width: contentWidth,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          SizedBox(height: wide ? 22 : 8),
-                          GradientLabel(AppStrings.appName,
-                              fontSize: wide ? 48 : 36, letterSpacing: wide ? 7 : 4),
-                          const SizedBox(height: 6),
-                          const Center(
-                            child: Text(AppStrings.tagline,
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    letterSpacing: 3,
-                                    color: AppColors.muted)),
+                          SizedBox(height: wide ? AppLayout.xl : AppLayout.sm),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.center,
+                            child: GradientLabel(
+                              AppStrings.appName,
+                              fontSize: compact ? 28 : wide ? 46 : 36,
+                              letterSpacing: compact ? 2 : wide ? 7 : 4,
+                            ),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: AppLayout.xs),
+                          const Text(
+                            AppStrings.tagline,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 11,
+                              letterSpacing: 3,
+                              color: AppColors.muted,
+                            ),
+                          ),
+                          const SizedBox(height: AppLayout.xl),
                           GlassCard(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(AppLayout.lg),
                             child: Column(
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    StatChip(
-                                      icon: Icons.bolt,
-                                      value: formatScore(profile.coins),
-                                      color: AppColors.gold,
+                                    Expanded(
+                                      child: StatChip(
+                                        icon: Icons.bolt,
+                                        value: formatScore(profile.coins),
+                                        color: AppColors.gold,
+                                        fill: true,
+                                      ),
                                     ),
-                                    StatChip(
-                                      icon: Icons.emoji_events,
-                                      value: formatScore(best),
-                                      color: AppColors.cyan,
+                                    const SizedBox(width: AppLayout.sm),
+                                    Expanded(
+                                      child: StatChip(
+                                        icon: Icons.emoji_events,
+                                        value: formatScore(best),
+                                        color: AppColors.cyan,
+                                        fill: true,
+                                      ),
                                     ),
-                                    StatChip(
-                                      icon: Icons.person,
-                                      value: 'LV ${profile.level}',
-                                      color: AppColors.violet,
+                                    const SizedBox(width: AppLayout.sm),
+                                    Expanded(
+                                      child: StatChip(
+                                        icon: Icons.person,
+                                        value: 'LV ${profile.level}',
+                                        color: AppColors.violet,
+                                        fill: true,
+                                      ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 14),
+                                const SizedBox(height: AppLayout.md),
                                 LevelBar(
                                   level: profile.level,
                                   current: profile.xpInLevel,
@@ -93,8 +120,12 @@ class MainMenu extends ConsumerWidget {
                             ),
                           ),
                           if (!profile.daily.rewardClaimed) ...[
-                            const SizedBox(height: 12),
+                            const SizedBox(height: AppLayout.md),
                             GlassCard(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppLayout.lg,
+                                vertical: AppLayout.md,
+                              ),
                               borderColor: AppColors.gold.withValues(alpha: 0.5),
                               onTap: () {
                                 final coins = ref
@@ -111,24 +142,33 @@ class MainMenu extends ConsumerWidget {
                               },
                               child: Row(
                                 children: [
-                                  const Icon(Icons.card_giftcard, color: AppColors.gold, size: 26),
-                                  const SizedBox(width: 12),
+                                  const Icon(Icons.card_giftcard,
+                                      color: AppColors.gold, size: 24),
+                                  const SizedBox(width: AppLayout.md),
                                   const Expanded(
-                                    child: Text('DAILY REWARD READY',
-                                        style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: 1.4)),
+                                    child: Text(
+                                      'DAILY REWARD READY',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
                                   ),
-                                  Text('+$dailyReward',
-                                      style: const TextStyle(
-                                          color: AppColors.gold, fontWeight: FontWeight.w800)),
-                                  const Icon(Icons.chevron_right, color: AppColors.gold),
+                                  Text(
+                                    '+$dailyReward',
+                                    style: const TextStyle(
+                                      color: AppColors.gold,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const Icon(Icons.chevron_right,
+                                      color: AppColors.gold, size: 20),
                                 ],
                               ),
                             ),
                           ],
-                          const SizedBox(height: 18),
+                          const SizedBox(height: AppLayout.xl),
                           NeonButton(
                             label: 'ENTER THE SHIFT',
                             icon: Icons.play_arrow_rounded,
@@ -137,7 +177,7 @@ class MainMenu extends ConsumerWidget {
                               pushScreen(context, const ModeSelectionScreen());
                             },
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: AppLayout.md),
                           NeonButton(
                             label: 'DAILY CHALLENGE',
                             icon: Icons.calendar_today,
@@ -153,53 +193,64 @@ class MainMenu extends ConsumerWidget {
                               );
                             },
                           ),
-                          const SizedBox(height: 22),
-                          const SectionTitle('COMMAND DECK',
-                              subtitle: 'Everything is available offline'),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
+                          const SizedBox(height: AppLayout.sectionGap),
+                          const SectionTitle(
+                            'COMMAND DECK',
+                            subtitle: 'Everything is available offline',
+                          ),
+                          const SizedBox(height: AppLayout.md),
+                          ResponsiveTileWrap(
+                            minTileWidth: 100,
+                            tileHeight: wide ? 104 : 92,
                             children: [
-                              _MenuTile(
+                              _menuTile(
                                 icon: Icons.person_outline,
                                 label: 'CHARACTERS',
                                 color: AppColors.cyan,
-                                onTap: () => pushScreen(context, const CharacterSelectionScreen()),
+                                onTap: () => pushScreen(
+                                  context,
+                                  const CharacterSelectionScreen(),
+                                ),
                               ),
-                              _MenuTile(
+                              _menuTile(
                                 icon: Icons.shopping_bag_outlined,
                                 label: 'SHOP',
                                 color: AppColors.gold,
                                 onTap: () => pushScreen(context, const ShopScreen()),
                               ),
-                              _MenuTile(
+                              _menuTile(
                                 icon: Icons.emoji_events_outlined,
                                 label: 'ACHIEVEMENTS',
                                 color: AppColors.violet,
-                                onTap: () => pushScreen(context, const AchievementsScreen()),
+                                onTap: () => pushScreen(
+                                  context,
+                                  const AchievementsScreen(),
+                                ),
                               ),
-                              _MenuTile(
+                              _menuTile(
                                 icon: Icons.assignment_outlined,
                                 label: 'MISSIONS',
                                 color: AppColors.pink,
-                                onTap: () => pushScreen(context, const MissionsScreen()),
+                                onTap: () =>
+                                    pushScreen(context, const MissionsScreen()),
                               ),
-                              _MenuTile(
+                              _menuTile(
                                 icon: Icons.bar_chart,
                                 label: 'STATS',
                                 color: AppColors.blue,
-                                onTap: () => pushScreen(context, const StatisticsScreen()),
+                                onTap: () =>
+                                    pushScreen(context, const StatisticsScreen()),
                               ),
-                              _MenuTile(
+                              _menuTile(
                                 icon: Icons.settings_outlined,
                                 label: 'SETTINGS',
                                 color: AppColors.muted,
-                                onTap: () => pushScreen(context, const SettingsScreen()),
+                                onTap: () =>
+                                    pushScreen(context, const SettingsScreen()),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 22),
+                          const SizedBox(height: AppLayout.sectionGap),
                         ],
                       ),
                     ),
@@ -210,6 +261,20 @@ class MainMenu extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _menuTile({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return _MenuTile(
+      icon: icon,
+      label: label,
+      color: color,
+      onTap: onTap,
     );
   }
 }
@@ -229,24 +294,35 @@ class _MenuTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 104,
-      child: GlassCard(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        borderColor: color.withValues(alpha: 0.24),
-        onTap: () {
-          AudioService.instance.ui();
-          onTap();
-        },
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 25),
-            const SizedBox(height: 8),
-            Text(label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, letterSpacing: 0.6)),
-          ],
-        ),
+    return GlassCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppLayout.sm,
+        vertical: AppLayout.md,
+      ),
+      borderColor: color.withValues(alpha: 0.24),
+      onTap: () {
+        AudioService.instance.ui();
+        onTap();
+      },
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: AppLayout.sm),
+          Flexible(
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.6,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

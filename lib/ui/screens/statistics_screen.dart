@@ -25,56 +25,74 @@ class StatisticsScreen extends ConsumerWidget {
       title: 'STATISTICS',
       subtitle: 'Your complete offline career record',
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+        padding: AppLayout.pagePadding,
         child: Column(
           children: [
             GlassCard(
               child: Column(
                 children: [
                   const SectionTitle('LIFETIME'),
-                  const SizedBox(height: 14),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: stats
-                        .map(
-                          (stat) => SizedBox(
-                            width: 104,
-                            child: GlassCard(
-                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-                              borderColor: AppColors.cyan.withValues(alpha: 0.18),
-                              child: Column(
-                                children: [
-                                  Icon(stat.icon, color: AppColors.cyan, size: 21),
-                                  const SizedBox(height: 7),
-                                  Text(stat.value,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                          fontSize: 15, fontWeight: FontWeight.w800)),
-                                  const SizedBox(height: 3),
-                                  Text(stat.label,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                          fontSize: 8.5,
-                                          color: AppColors.muted,
-                                          letterSpacing: 0.6)),
-                                ],
-                              ),
+                  const SizedBox(height: AppLayout.md),
+                  ResponsiveTileWrap(
+                    minTileWidth: 100,
+                    tileHeight: 112,
+                    children: [
+                      for (final stat in stats)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppLayout.sm,
+                            horizontal: AppLayout.sm,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceLight.withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(AppRadius.iconTile),
+                            border: Border.all(
+                              color: AppColors.cyan.withValues(alpha: 0.18),
                             ),
                           ),
-                        )
-                        .toList(),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(stat.icon, color: AppColors.cyan, size: 21),
+                              const SizedBox(height: AppLayout.sm),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  stat.value,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: AppLayout.xs),
+                              Text(
+                                stat.label,
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: AppColors.muted,
+                                  letterSpacing: 0.6,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppLayout.md),
             GlassCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SectionTitle('PERSONAL BESTS'),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppLayout.md),
                   ...GameMode.values.map(
                     (mode) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 7),
@@ -88,14 +106,27 @@ class StatisticsScreen extends ConsumerWidget {
                               GameMode.daily => Icons.today,
                             },
                             size: 17,
-                            color: AppColors.violet,
+                            color: switch (mode) {
+                              GameMode.classic => AppColors.cyan,
+                              GameMode.timeAttack => AppColors.pink,
+                              GameMode.challenge => AppColors.violet,
+                              GameMode.daily => AppColors.gold,
+                            },
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(child: Text(mode.label,
-                              style: const TextStyle(fontSize: 12, letterSpacing: 1.2))),
-                          Text(formatScore(profile.bestScores[mode.name] ?? 0),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w800, color: AppColors.cyan)),
+                          const SizedBox(width: AppLayout.md),
+                          Expanded(
+                            child: Text(
+                              mode.label,
+                              style: const TextStyle(fontSize: 12, letterSpacing: 1.2),
+                            ),
+                          ),
+                          Text(
+                            formatScore(profile.bestScores[mode.name] ?? 0),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.cyan,
+                            ),
+                          ),
                         ],
                       ),
                     ),

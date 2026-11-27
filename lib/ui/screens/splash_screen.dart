@@ -6,6 +6,7 @@ import 'package:shadowshift/core/constants.dart';
 import 'package:shadowshift/domain/services/audio_service.dart';
 import 'package:shadowshift/state/app_providers.dart';
 import 'package:shadowshift/ui/screens/main_menu.dart';
+import 'package:shadowshift/ui/widgets/design.dart';
 import 'package:shadowshift/ui/widgets/space_background.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -59,58 +60,63 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     return Scaffold(
       body: Stack(
         children: [
-          SpaceBackground(reducedMotion: reducedMotion),
-          Center(
-            child: FadeTransition(
-              opacity: fade,
-              child: ScaleTransition(
-                scale: scale,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 122,
-                      height: 122,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [AppColors.cyan, AppColors.violet],
+          Positioned.fill(child: SpaceBackground(reducedMotion: reducedMotion)),
+          SafeArea(
+            child: Center(
+              child: FadeTransition(
+                opacity: fade,
+                child: ScaleTransition(
+                  scale: scale,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 122,
+                        height: 122,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            colors: [AppColors.cyan, AppColors.violet],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.cyan.withValues(alpha: 0.5),
+                              blurRadius: 45,
+                            ),
+                          ],
                         ),
-                        boxShadow: [
-                          BoxShadow(color: AppColors.cyan.withValues(alpha: 0.5), blurRadius: 45),
-                        ],
+                        child: const Icon(Icons.flash_on, size: 62, color: Colors.white),
                       ),
-                      child: const Icon(Icons.flash_on, size: 62, color: Colors.white),
-                    ),
-                    const SizedBox(height: 30),
-                    const Text(
-                      AppStrings.appName,
-                      style: TextStyle(
-                        fontSize: 31,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 7,
-                        color: AppColors.text,
+                      const SizedBox(height: AppLayout.xl + AppLayout.md),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: GradientLabel(
+                          AppStrings.appName,
+                          fontSize: 31,
+                          letterSpacing: 5,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      AppStrings.tagline,
-                      style: TextStyle(
-                        fontSize: 11,
-                        letterSpacing: 3.4,
-                        color: AppColors.cyan,
+                      const SizedBox(height: AppLayout.md),
+                      const Text(
+                        AppStrings.tagline,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 11,
+                          letterSpacing: 3,
+                          color: AppColors.muted,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 44),
-                    SizedBox(
-                      width: 170,
-                      child: LinearProgressIndicator(
-                        color: AppColors.violet,
-                        backgroundColor: AppColors.surfaceLight,
-                        minHeight: 3,
+                      const SizedBox(height: AppLayout.xxl + AppLayout.lg),
+                      SizedBox(
+                        width: 170,
+                        child: LinearProgressIndicator(
+                          color: AppColors.violet,
+                          backgroundColor: AppColors.surfaceLight,
+                          minHeight: 3,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
