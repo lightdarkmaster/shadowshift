@@ -1,6 +1,6 @@
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:shadowshift/core/constants.dart';
 import 'package:shadowshift/domain/game/engine.dart';
 import 'package:shadowshift/domain/game/entities.dart';

@@ -72,6 +72,7 @@ class PlayerProfile {
     Set<String>? unlockedSkins,
     Set<String>? unlockedEffects,
     Set<String>? unlockedAbilities,
+    Set<String>? unlockedCompanions,
     Set<String>? achievements,
     Set<String>? completedChallenges,
     Map<String, int>? bestScores,
@@ -79,11 +80,13 @@ class PlayerProfile {
     String? skin,
     String? effect,
     String? ability,
+    String? companion,
     DailyState? daily,
   })  : unlockedCharacters = unlockedCharacters ?? {'nyx'},
         unlockedSkins = unlockedSkins ?? {'aurora'},
         unlockedEffects = unlockedEffects ?? {'classic'},
         unlockedAbilities = unlockedAbilities ?? {'none'},
+        unlockedCompanions = unlockedCompanions ?? {'none'},
         achievements = achievements ?? <String>{},
         completedChallenges = completedChallenges ?? <String>{},
         bestScores = bestScores ?? <String, int>{},
@@ -91,6 +94,7 @@ class PlayerProfile {
         skin = skin ?? 'aurora',
         effect = effect ?? 'classic',
         ability = ability ?? 'none',
+        companion = companion ?? 'none',
         daily = daily ?? DailyState(date: '');
 
   int version;
@@ -107,6 +111,7 @@ class PlayerProfile {
   Set<String> unlockedSkins;
   Set<String> unlockedEffects;
   Set<String> unlockedAbilities;
+  Set<String> unlockedCompanions;
   Set<String> achievements;
   Set<String> completedChallenges;
   Map<String, int> bestScores;
@@ -114,6 +119,7 @@ class PlayerProfile {
   String skin;
   String effect;
   String ability;
+  String companion;
   DailyState daily;
 
   int get level => levelForXp(xp);
@@ -163,6 +169,7 @@ class PlayerProfile {
         unlockedSkins: Set<String>.from(unlockedSkins),
         unlockedEffects: Set<String>.from(unlockedEffects),
         unlockedAbilities: Set<String>.from(unlockedAbilities),
+        unlockedCompanions: Set<String>.from(unlockedCompanions),
         achievements: Set<String>.from(achievements),
         completedChallenges: Set<String>.from(completedChallenges),
         bestScores: Map<String, int>.from(bestScores),
@@ -170,6 +177,7 @@ class PlayerProfile {
         skin: skin,
         effect: effect,
         ability: ability,
+        companion: companion,
         daily: DailyState(
           date: daily.date,
           claimedMissions: Set<String>.from(daily.claimedMissions),
@@ -195,6 +203,7 @@ class PlayerProfile {
         'unlockedSkins': unlockedSkins.toList(),
         'unlockedEffects': unlockedEffects.toList(),
         'unlockedAbilities': unlockedAbilities.toList(),
+        'unlockedCompanions': unlockedCompanions.toList(),
         'achievements': achievements.toList(),
         'completedChallenges': completedChallenges.toList(),
         'bestScores': bestScores,
@@ -202,6 +211,7 @@ class PlayerProfile {
         'skin': skin,
         'effect': effect,
         'ability': ability,
+        'companion': companion,
         'daily': daily.toJson(),
       };
 
@@ -223,6 +233,7 @@ class PlayerProfile {
       unlockedSkins: _knownSet(json['unlockedSkins'], Catalog.skins.map((e) => e.id), {'aurora'}),
       unlockedEffects: _knownSet(json['unlockedEffects'], Catalog.effects.map((e) => e.id), {'classic'}),
       unlockedAbilities: _knownSet(json['unlockedAbilities'], Catalog.abilities.map((e) => e.id), {'none'}),
+      unlockedCompanions: _knownSet(json['unlockedCompanions'], Catalog.companions.map((e) => e.id), {'none'}),
       achievements: _knownSet(json['achievements'], Achievements.all.map((e) => e.id), {}),
       completedChallenges: _knownSet(json['completedChallenges'], Challenges.all.map((e) => e.id), {}),
       bestScores: _intMap(json['bestScores']),
@@ -230,6 +241,7 @@ class PlayerProfile {
       skin: json['skin'] is String ? json['skin'] as String : 'aurora',
       effect: json['effect'] is String ? json['effect'] as String : 'classic',
       ability: json['ability'] is String ? json['ability'] as String : 'none',
+      companion: json['companion'] is String ? json['companion'] as String : 'none',
       daily: json['daily'] is Map
           ? DailyState.fromJson(Map<String, dynamic>.from(json['daily'] as Map), today)
           : DailyState(date: today),
@@ -240,6 +252,7 @@ class PlayerProfile {
     if (!profile.unlockedSkins.contains(profile.skin)) profile.skin = 'aurora';
     if (!profile.unlockedEffects.contains(profile.effect)) profile.effect = 'classic';
     if (!profile.unlockedAbilities.contains(profile.ability)) profile.ability = 'none';
+    if (!profile.unlockedCompanions.contains(profile.companion)) profile.companion = 'none';
     return profile;
   }
 

@@ -1,39 +1,76 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shadowshift/core/constants.dart';
 import 'package:shadowshift/core/theme.dart';
 import 'package:shadowshift/data/repositories/storage_repository.dart';
 import 'package:shadowshift/state/app_providers.dart';
 import 'package:shadowshift/ui/screens/splash_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  // Start independent platform work together instead of awaiting serially.
-  final prefsFuture = SharedPreferences.getInstance();
-  final orientationFuture = SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-  final prefs = await prefsFuture;
-  await orientationFuture;
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: Color(0xFF05060F),
-      systemNavigationBarIconBrightness: Brightness.light,
-    ),
+void main() {
+  // Bindings must be initialised inside the same zone that runs the app,
+  // otherwise Flutter reports a zone mismatch on the first frame.
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      _installErrorHandlers();
+      // Start independent platform work together instead of awaiting serially.
+      final prefsFuture = SharedPreferences.getInstance();
+      final orientationFuture = SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
+      final prefs = await prefsFuture;
+      await orientationFuture;
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          systemNavigationBarColor: Color(0xFF05060F),
+          systemNavigationBarIconBrightness: Brightness.light,
+        ),
+      );
+      final storage = StorageRepository(prefs);
+      runApp(
+        ProviderScope(
+          overrides: [storageProvider.overrideWithValue(storage)],
+          child: const ShadowShiftApp(),
+        ),
+      );
+    },
+    (error, stack) {
+      debugPrint('Uncaught app error: $error');
+      debugPrint('$stack');
+    },
   );
-  final storage = StorageRepository(prefs);
-  runApp(
-    ProviderScope(
-      overrides: [storageProvider.overrideWithValue(storage)],
-      child: const ShadowShiftApp(),
-    ),
-  );
+}
+
+/// Turns any unexpected build/layout failure into a readable screen instead of
+/// Flutter's red error slab, while still printing the full error for debugging.
+void _installErrorHandlers() {
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('Flutter error: ${details.exception}');
+  };
+  ErrorWidget.builder = (details) {
+    debugPrint('Build error: ${details.exception}');
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Container(
+        color: AppColors.background,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          'The game hit an unexpected error.\n\n${details.exception}',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: AppColors.text, fontSize: 14),
+        ),
+      ),
+    );
+  };
 }
 
 class ShadowShiftApp extends ConsumerStatefulWidget {

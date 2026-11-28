@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadowshift/core/constants.dart';
 import 'package:shadowshift/core/utils.dart';
@@ -16,6 +16,7 @@ import 'package:shadowshift/ui/screens/mode_selection.dart';
 import 'package:shadowshift/ui/screens/settings_screen.dart';
 import 'package:shadowshift/ui/screens/shop_screen.dart';
 import 'package:shadowshift/ui/screens/statistics_screen.dart';
+import 'package:shadowshift/ui/widgets/about_dialog.dart';
 import 'package:shadowshift/ui/widgets/design.dart';
 import 'package:shadowshift/ui/widgets/space_background.dart';
 
@@ -34,7 +35,13 @@ class MainMenu extends ConsumerWidget {
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(child: SpaceBackground(reducedMotion: reducedMotion)),
+          Positioned.fill(
+            child: SpaceBackground(
+              reducedMotion: reducedMotion,
+              skinId: profile.skin,
+              effectId: profile.effect,
+            ),
+          ),
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -57,11 +64,32 @@ class MainMenu extends ConsumerWidget {
                         children: [
                           SizedBox(height: wide ? AppLayout.xl : AppLayout.sm),
                           Center(
-                            child: Image.asset(
-                              'assets/images/shadowshift_logo.png',
-                              width: wide ? 104 : compact ? 72 : 88,
-                              height: wide ? 104 : compact ? 72 : 88,
-                              fit: BoxFit.contain,
+                            child: Tooltip(
+                              message: 'About ${AppStrings.appName}',
+                              child: Semantics(
+                                button: true,
+                                label: 'About ${AppStrings.appName}',
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () {
+                                      AudioService.instance.ui();
+                                      showDialog(
+                                        context: context,
+                                        builder: (_) => const AppAboutDialog(),
+                                      );
+                                    },
+                                    borderRadius:
+                                        BorderRadius.circular(AppRadius.card),
+                                    child: Image.asset(
+                                      'assets/images/shadowshift_logo.png',
+                                      width: wide ? 104 : compact ? 72 : 88,
+                                      height: wide ? 104 : compact ? 72 : 88,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(height: AppLayout.sm),

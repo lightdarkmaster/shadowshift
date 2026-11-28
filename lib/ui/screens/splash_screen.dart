@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadowshift/core/constants.dart';
 import 'package:shadowshift/domain/services/audio_service.dart';
@@ -51,6 +51,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     final reducedMotion = ref.watch(settingsProvider.select((s) => s.reducedMotion));
+    final skinId = ref.watch(profileProvider.select((p) => p.skin));
+    final effectId = ref.watch(profileProvider.select((p) => p.effect));
     final scale = Tween<double>(begin: 0.7, end: 1).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
     );
@@ -60,7 +62,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(child: SpaceBackground(reducedMotion: reducedMotion)),
+          Positioned.fill(
+            child: SpaceBackground(
+              reducedMotion: reducedMotion,
+              skinId: skinId,
+              effectId: effectId,
+            ),
+          ),
           SafeArea(
             child: Center(
               child: FadeTransition(

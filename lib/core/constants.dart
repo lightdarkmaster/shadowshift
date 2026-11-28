@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Tuning values for the gameplay simulation. The engine works in virtual
 /// world units so that behaviour is identical on every screen aspect ratio.
@@ -25,6 +25,7 @@ abstract final class GameConfig {
 abstract final class AppStrings {
   static const appName = 'SHADOW SHIFT';
   static const tagline = 'PHASE. DODGE. SURVIVE.';
+  static const version = '1.0.0';
 }
 
 abstract final class AppColors {
@@ -39,6 +40,39 @@ abstract final class AppColors {
   static const text = Color(0xFFEEF3FF);
   static const muted = Color(0xFF8E9AC0);
   static const danger = Color(0xFFFF4D6D);
+}
+
+/// Calm left-green / right-purple backdrop shared by every screen.
+/// Colours are deep and low-saturation so UI text stays readable and long
+/// play sessions do not get hit with harsh neon contrast.
+abstract final class AppGradients {
+  static const leftDeep = Color(0xFF0C3A34);
+  static const leftMid = Color(0xFF0A2626);
+  static const rightDeep = Color(0xFF2B1B4F);
+  static const rightMid = Color(0xFF16102F);
+  static const centerFade = Color(0x000A0F1E);
+
+  static const leftWash = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.center,
+    colors: [leftDeep, leftMid, centerFade],
+    stops: [0, 0.55, 1],
+  );
+
+  static const rightWash = LinearGradient(
+    begin: Alignment.center,
+    end: Alignment.centerRight,
+    colors: [centerFade, rightMid, rightDeep],
+    stops: [0, 0.45, 1],
+  );
+
+  /// Darkens only the outer edges, keeping the centre calm behind cards.
+  static const vignette = RadialGradient(
+    center: Alignment.center,
+    radius: 0.95,
+    colors: [Color(0x00050A14), Color(0x80050912)],
+    stops: [0.35, 1],
+  );
 }
 
 abstract final class StorageKeys {

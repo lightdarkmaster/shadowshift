@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadowshift/core/constants.dart';
 import 'package:shadowshift/core/utils.dart';
@@ -27,11 +27,19 @@ class AppScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final coins = ref.watch(profileProvider.select((p) => p.coins));
+    final skinId = ref.watch(profileProvider.select((p) => p.skin));
+    final effectId = ref.watch(profileProvider.select((p) => p.effect));
     final reducedMotion = ref.watch(settingsProvider.select((s) => s.reducedMotion));
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(child: SpaceBackground(reducedMotion: reducedMotion)),
+          Positioned.fill(
+            child: SpaceBackground(
+              reducedMotion: reducedMotion,
+              skinId: skinId,
+              effectId: effectId,
+            ),
+          ),
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {

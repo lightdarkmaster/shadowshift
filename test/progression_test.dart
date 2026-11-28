@@ -135,6 +135,23 @@ void main() {
       );
     });
 
+    test('companions use the same purchase economy', () {
+      final profile = PlayerProfile(coins: 700);
+      final next = ProgressionService.purchase(
+        profile,
+        'wisp',
+        600,
+        'companion',
+      );
+      expect(next, isNotNull);
+      expect(next!.coins, 100);
+      expect(next.unlockedCompanions, contains('wisp'));
+      expect(
+        ProgressionService.purchase(next, 'beacon', 2400, 'companion'),
+        isNull,
+      );
+    });
+
     test('daily reward cannot be claimed twice and tracks streaks', () {
       final first = ProgressionService.claimDailyReward(
         PlayerProfile(),
@@ -240,11 +257,15 @@ void main() {
         xp: 250,
         character: 'nyx',
         unlockedCharacters: {'nyx', 'flux'},
+        companion: 'wisp',
+        unlockedCompanions: {'none', 'wisp'},
         bestScores: {'classic': 4200},
       );
       final decoded = PlayerProfile.fromJson(original.toJson(), '2026-11-27');
       expect(decoded.coins, 500);
       expect(decoded.unlockedCharacters, {'nyx', 'flux'});
+      expect(decoded.companion, 'wisp');
+      expect(decoded.unlockedCompanions, {'none', 'wisp'});
       expect(decoded.bestScores['classic'], 4200);
 
       final corrupted = PlayerProfile.fromJson(
@@ -253,6 +274,8 @@ void main() {
           'xp': 'not a number',
           'character': 'unknown',
           'unlockedCharacters': ['unknown', 'flux'],
+          'companion': 'unknown',
+          'unlockedCompanions': ['unknown', 'wisp'],
           'bestScores': {'classic': -5},
         },
         '2026-11-27',
@@ -260,6 +283,8 @@ void main() {
       expect(corrupted.coins, 0);
       expect(corrupted.xp, 0);
       expect(corrupted.character, 'nyx');
+      expect(corrupted.companion, 'none');
+      expect(corrupted.unlockedCompanions, {'wisp'});
       expect(corrupted.bestScores['classic'], 0);
     });
 

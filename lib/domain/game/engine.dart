@@ -16,6 +16,11 @@ class RunLoadout {
     this.speedReduction = 1.0,
     this.focusAvailable = false,
     this.magnetStart = false,
+    this.slowStart = false,
+    this.doubleStart = false,
+    this.shieldDurationBonus = 1.0,
+    this.dodgeBonus = 1.0,
+    this.scoreBonus = 1.0,
   });
 
   final bool shieldStart;
@@ -23,6 +28,11 @@ class RunLoadout {
   final double speedReduction;
   final bool focusAvailable;
   final bool magnetStart;
+  final bool slowStart;
+  final bool doubleStart;
+  final double shieldDurationBonus;
+  final double dodgeBonus;
+  final double scoreBonus;
 }
 
 /// Pure gameplay simulation. Contains no Flutter widgets and no rendering,
@@ -36,8 +46,13 @@ class GameEngine {
     this.loadout = const RunLoadout(),
   }) : rng = SeededRandom(seed) {
     playerY = worldHeight * 0.52;
-    if (loadout.shieldStart) effects[PowerUpKind.shield] = GameConfig.shieldDuration;
+    if (loadout.shieldStart) {
+      effects[PowerUpKind.shield] =
+          GameConfig.shieldDuration * loadout.shieldDurationBonus;
+    }
     if (loadout.magnetStart) effects[PowerUpKind.magnet] = GameConfig.magnetDuration;
+    if (loadout.slowStart) effects[PowerUpKind.slow] = GameConfig.slowDuration;
+    if (loadout.doubleStart) effects[PowerUpKind.double] = GameConfig.doubleDuration;
   }
 
   final GameMode mode;
@@ -72,10 +87,11 @@ class GameEngine {
   final List<PowerUpKind> _expiredEffects = <PowerUpKind>[];
   final DifficultySnapshot _difficulty = DifficultyController.at(0, 0);
 
-  double _spawnTimer = 0.85;
+  // Give the player a moment to read the lane after the countdown finishes.
+  double _spawnTimer = 1.6;
   double _orbTimer = 0.35;
   double _powerTimer = 14;
-  double _invulnerability = 0;
+  double _invulnerability = 1;
   double _switchGrace = 0;
   int _id = 0;
   Dimension? _lastDimension;
@@ -114,6 +130,7 @@ class GameEngine {
 
   void update(double dt) {
     if (paused || isOver) return;
+    if (!dt.isFinite) return;
     dt = clampDouble(dt, 0, GameConfig.maxDeltaTime);
     if (dt <= 0) return;
     elapsed += dt;
@@ -134,7 +151,8 @@ class GameEngine {
         (slowActive ? 0.64 : 1) *
         (focusing ? 0.55 : 1) *
         loadout.speedReduction;
-    score += (speed * dt * 0.035 * (doubleActive ? 2 : 1)).round();
+    score += (speed * dt * 0.035 * (doubleActive ? 2 : 1) * loadout.scoreBonus)
+        .round();
 
     _spawnTimer -= dt;
     if (_spawnTimer <= 0) {
@@ -161,7 +179,10 @@ class GameEngine {
         dodges++;
         combo++;
         maxCombo = math.max(maxCombo, combo);
-        score += ScoreCalculator.dodgePoints(combo, doubled: doubleActive);
+        score += (ScoreCalculator.dodgePoints(combo, doubled: doubleActive) *
+                loadout.dodgeBonus *
+                loadout.scoreBonus)
+            .round();
         _events.add(GameEvent.dodge);
       }
     }
@@ -326,7 +347,8 @@ class GameEngine {
       combo++;
       maxCombo = math.max(maxCombo, combo);
       score += (ScoreCalculator.orbPoints(combo, doubled: doubleActive) *
-              loadout.orbBonus)
+              loadout.orbBonus *
+              loadout.scoreBonus)
           .round();
       _burst(orb.x, orb.y, 8, AppPalette.gold, 135);
       _events.add(GameEvent.collectOrb);
@@ -339,7 +361,7 @@ class GameEngine {
       }
       powerUp.collected = true;
       final duration = switch (powerUp.kind) {
-        PowerUpKind.shield => GameConfig.shieldDuration,
+        PowerUpKind.shield => GameConfig.shieldDuration * loadout.shieldDurationBonus,
         PowerUpKind.magnet => GameConfig.magnetDuration,
         PowerUpKind.slow => GameConfig.slowDuration,
         PowerUpKind.double => GameConfig.doubleDuration,

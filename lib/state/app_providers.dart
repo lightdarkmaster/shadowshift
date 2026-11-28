@@ -62,6 +62,8 @@ class ProfileNotifier extends Notifier<PlayerProfile> {
         next.effect = itemId;
       case 'ability':
         next.ability = itemId;
+      case 'companion':
+        next.companion = itemId;
     }
     _commit(next);
     return true;
@@ -85,6 +87,11 @@ class ProfileNotifier extends Notifier<PlayerProfile> {
   void selectAbility(String id) {
     if (!state.unlockedAbilities.contains(id)) return;
     _commit(state.copy()..ability = id);
+  }
+
+  void selectCompanion(String id) {
+    if (!state.unlockedCompanions.contains(id)) return;
+    _commit(state.copy()..companion = id);
   }
 
   int claimMission(String id, int coins, int xp) {

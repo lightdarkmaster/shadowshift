@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadowshift/core/constants.dart';
 import 'package:shadowshift/core/utils.dart';
@@ -123,8 +123,10 @@ class GameOverScreen extends ConsumerWidget {
                   Row(
                     children: [
                       Expanded(child: _RewardTile(icon: Icons.bolt, label: '+${summary.coins}', color: AppColors.gold)),
+                      const SizedBox(width: AppLayout.md),
                       Expanded(child: _RewardTile(icon: Icons.stars, label: '+${summary.xp} XP', color: AppColors.violet)),
-                      if (summary.levelAfter > summary.levelBefore)
+                      if (summary.levelAfter > summary.levelBefore) ...[
+                        const SizedBox(width: AppLayout.md),
                         Expanded(
                           child: _RewardTile(
                             icon: Icons.arrow_upward,
@@ -132,6 +134,7 @@ class GameOverScreen extends ConsumerWidget {
                             color: AppColors.cyan,
                           ),
                         ),
+                      ],
                     ],
                   ),
                   if (summary.challengeCompleted != null) ...[

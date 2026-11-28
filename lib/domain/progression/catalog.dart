@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:shadowshift/domain/game/engine.dart';
 import 'package:shadowshift/domain/game/entities.dart';
 import 'package:shadowshift/domain/game/enums.dart';
@@ -63,6 +63,30 @@ abstract final class Catalog {
       color: Color(0xFFFFD166),
       icon: Icons.shield,
     ),
+    ShopItem(
+      id: 'viper',
+      name: 'VIPER',
+      description: '+20% points from every clean dodge.',
+      price: 2400,
+      color: Color(0xFF9DFF5B),
+      icon: Icons.rocket_launch,
+    ),
+    ShopItem(
+      id: 'onyx',
+      name: 'ONYX',
+      description: 'Start each run with Orb Magnet active.',
+      price: 3000,
+      color: Color(0xFF7A8CB8),
+      icon: Icons.nightlight,
+    ),
+    ShopItem(
+      id: 'lumen',
+      name: 'LUMEN',
+      description: '+10% points from every source.',
+      price: 3800,
+      color: Color(0xFFFFE9A8),
+      icon: Icons.brightness_2,
+    ),
   ];
 
   static const skins = <ShopItem>[
@@ -72,7 +96,7 @@ abstract final class Catalog {
       description: 'Cyan-violet signature glow.',
       price: 0,
       color: Color(0xFF35F5F1),
-      icon: Icons.palette,
+      icon: Icons.wb_twilight,
     ),
     ShopItem(
       id: 'inferno',
@@ -97,6 +121,38 @@ abstract final class Catalog {
       price: 1100,
       color: Color(0xFF9DEBFF),
       icon: Icons.ac_unit,
+    ),
+    ShopItem(
+      id: 'solar',
+      name: 'SOLAR',
+      description: 'Radiant gold supernova core and aura.',
+      price: 1600,
+      color: Color(0xFFFFD166),
+      icon: Icons.wb_sunny,
+    ),
+    ShopItem(
+      id: 'neon',
+      name: 'NEON',
+      description: 'Electric magenta circuit signature.',
+      price: 2200,
+      color: Color(0xFFFF5BA7),
+      icon: Icons.flash_on,
+    ),
+    ShopItem(
+      id: 'phantom',
+      name: 'PHANTOM',
+      description: 'Ghost-white phase plating and trail.',
+      price: 3000,
+      color: Color(0xFFE6F4FF),
+      icon: Icons.visibility_off,
+    ),
+    ShopItem(
+      id: 'spectrum',
+      name: 'SPECTRUM',
+      description: 'Prismatic core that cycles through every hue.',
+      price: 3800,
+      color: Color(0xFFA46BFF),
+      icon: Icons.color_lens,
     ),
   ];
 
@@ -133,6 +189,38 @@ abstract final class Catalog {
       color: Color(0xFFFF5BA7),
       icon: Icons.dark_mode,
     ),
+    ShopItem(
+      id: 'nova',
+      name: 'NOVA',
+      description: 'Radiating starbursts on every phase shift.',
+      price: 2000,
+      color: Color(0xFFFFD166),
+      icon: Icons.brightness_5,
+    ),
+    ShopItem(
+      id: 'glitch',
+      name: 'GLITCH',
+      description: 'Chromatic split and scanning signal lines.',
+      price: 2600,
+      color: Color(0xFFFF5BA7),
+      icon: Icons.graphic_eq,
+    ),
+    ShopItem(
+      id: 'blizzard',
+      name: 'BLIZZARD',
+      description: 'Drifting ice crystals across the lane.',
+      price: 3300,
+      color: Color(0xFF9DEBFF),
+      icon: Icons.cloudy_snowing,
+    ),
+    ShopItem(
+      id: 'prism',
+      name: 'PRISM',
+      description: 'Rainbow trail and multi-hue shockwaves.',
+      price: 4000,
+      color: Color(0xFFA46BFF),
+      icon: Icons.filter_vintage,
+    ),
   ];
 
   static const abilities = <ShopItem>[
@@ -147,7 +235,7 @@ abstract final class Catalog {
     ShopItem(
       id: 'overclock',
       name: 'OVERCLOCK',
-      description: '+8% score from all sources.',
+      description: '+8% points from every energy orb.',
       price: 600,
       color: Color(0xFF35F5F1),
       icon: Icons.trending_up,
@@ -166,7 +254,84 @@ abstract final class Catalog {
       description: 'Start each run with a Phase Shield.',
       price: 1400,
       color: Color(0xFFA46BFF),
-      icon: Icons.shield,
+      icon: Icons.security,
+    ),
+    ShopItem(
+      id: 'chrono_core',
+      name: 'CHRONO CORE',
+      description: 'Start each run with 7s of Time Slow.',
+      price: 1800,
+      color: Color(0xFF3A7BFF),
+      icon: Icons.hourglass_top,
+    ),
+    ShopItem(
+      id: 'double_core',
+      name: 'DOUBLE CORE',
+      description: 'Start each run with Double Score active.',
+      price: 2400,
+      color: Color(0xFFFF5BA7),
+      icon: Icons.filter_2,
+    ),
+    ShopItem(
+      id: 'aegis_core',
+      name: 'AEGIS CORE',
+      description: 'Shield pickups and starts last 50% longer.',
+      price: 3000,
+      color: Color(0xFF35F5F1),
+      icon: Icons.health_and_safety,
+    ),
+    ShopItem(
+      id: 'momentum_core',
+      name: 'MOMENTUM CORE',
+      description: '+20% points from every clean dodge.',
+      price: 3600,
+      color: Color(0xFFFFD166),
+      icon: Icons.bolt,
+    ),
+  ];
+
+  /// A small floating ally that follows the runner and grants a light perk.
+  /// `none` is the free starter so existing saves keep working unchanged.
+  static const companions = <ShopItem>[
+    ShopItem(
+      id: 'none',
+      name: 'NO COMPANION',
+      description: 'Run solo. No ally and no bonus.',
+      price: 0,
+      color: Color(0xFF8E9AC0),
+      icon: Icons.do_not_disturb_alt,
+    ),
+    ShopItem(
+      id: 'wisp',
+      name: 'WISP',
+      description: '+5% points from every energy orb.',
+      price: 600,
+      color: Color(0xFF35F5F1),
+      icon: Icons.lens,
+    ),
+    ShopItem(
+      id: 'sentinel',
+      name: 'SENTINEL',
+      description: 'Shield effects last 25% longer.',
+      price: 1200,
+      color: Color(0xFFA46BFF),
+      icon: Icons.stars,
+    ),
+    ShopItem(
+      id: 'spark',
+      name: 'SPARK',
+      description: '+10% points from clean dodges.',
+      price: 1800,
+      color: Color(0xFFFFD166),
+      icon: Icons.filter_hdr,
+    ),
+    ShopItem(
+      id: 'beacon',
+      name: 'BEACON',
+      description: 'Start each run with Orb Magnet active.',
+      price: 2400,
+      color: Color(0xFF3A7BFF),
+      icon: Icons.gps_fixed,
     ),
   ];
 
@@ -182,19 +347,46 @@ abstract final class Catalog {
   static RunLoadout loadout({
     required String characterId,
     required String abilityId,
+    String companionId = 'none',
   }) {
     var shield = characterId == 'zenith' || abilityId == 'phase_core';
     var orbs = characterId == 'flux' ? 1.15 : 1.0;
     var speed = characterId == 'echo' ? 0.94 : 1.0;
     var focus = characterId == 'spectre';
     var magnet = abilityId == 'magnet_core';
+    var dodge = abilityId == 'momentum_core' ? 1.2 : 1.0;
+    var shieldDuration = abilityId == 'aegis_core' ? 1.5 : 1.0;
+    var score = 1.0;
     if (abilityId == 'overclock') orbs *= 1.08;
+
+    // Runner perks.
+    if (characterId == 'viper') dodge *= 1.2;
+    if (characterId == 'onyx') magnet = true;
+    if (characterId == 'lumen') score *= 1.1;
+
+    // Companion perks stack with the runner and core instead of replacing them.
+    switch (companionId) {
+      case 'wisp':
+        orbs *= 1.05;
+      case 'sentinel':
+        shieldDuration *= 1.25;
+      case 'spark':
+        dodge *= 1.1;
+      case 'beacon':
+        magnet = true;
+    }
+
     return RunLoadout(
       shieldStart: shield,
       orbBonus: orbs,
       speedReduction: speed,
       focusAvailable: focus,
       magnetStart: magnet,
+      slowStart: abilityId == 'chrono_core',
+      doubleStart: abilityId == 'double_core',
+      shieldDurationBonus: shieldDuration,
+      dodgeBonus: dodge,
+      scoreBonus: score,
     );
   }
 }

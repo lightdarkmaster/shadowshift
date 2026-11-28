@@ -144,6 +144,7 @@ class ProgressionService {
       'skin' => source.unlockedSkins,
       'effect' => source.unlockedEffects,
       'ability' => source.unlockedAbilities,
+      'companion' => source.unlockedCompanions,
       _ => <String>{},
     };
     if (owned.contains(itemId) || source.coins < price) return null;
@@ -154,6 +155,7 @@ class ProgressionService {
       'skin' => next.unlockedSkins,
       'effect' => next.unlockedEffects,
       'ability' => next.unlockedAbilities,
+      'companion' => next.unlockedCompanions,
       _ => next.unlockedCharacters,
     };
     owned.add(itemId);

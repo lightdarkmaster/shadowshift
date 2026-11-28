@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadowshift/core/constants.dart';
 import 'package:shadowshift/domain/progression/catalog.dart';
@@ -14,7 +14,7 @@ class ShopScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: AppScaffold(
         title: 'SHOP',
         subtitle: 'Earned through gameplay only',
@@ -28,6 +28,7 @@ class ShopScreen extends ConsumerWidget {
                 Tab(text: 'SKINS'),
                 Tab(text: 'EFFECTS'),
                 Tab(text: 'CORES'),
+                Tab(text: 'COMPANIONS'),
               ],
             ),
             Expanded(
@@ -50,6 +51,12 @@ class ShopScreen extends ConsumerWidget {
                     owned: profile.unlockedAbilities,
                     selectedId: profile.ability,
                     category: 'ability',
+                  ),
+                  _ItemList(
+                    items: Catalog.companions,
+                    owned: profile.unlockedCompanions,
+                    selectedId: profile.companion,
+                    category: 'companion',
                   ),
                 ],
               ),
@@ -135,6 +142,8 @@ class _ItemList extends ConsumerWidget {
                               notifier.selectEffect(item.id);
                             case 'ability':
                               notifier.selectAbility(item.id);
+                            case 'companion':
+                              notifier.selectCompanion(item.id);
                           }
                           AudioService.instance.ui();
                           return;

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadowshift/core/constants.dart';
 import 'package:shadowshift/domain/services/audio_service.dart';
@@ -108,8 +108,8 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('SHADOW SHIFT v1.0 · 100% OFFLINE',
-                style: TextStyle(
+            Text('SHADOW SHIFT v${AppStrings.version} · 100% OFFLINE',
+                style: const TextStyle(
                     fontSize: 10, letterSpacing: 1.5, color: AppColors.muted)),
           ],
         ),

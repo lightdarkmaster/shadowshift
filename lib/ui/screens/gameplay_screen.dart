@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadowshift/core/constants.dart';
 import 'package:shadowshift/core/utils.dart';
@@ -58,22 +58,28 @@ class _GameplayScreenState extends ConsumerState<GameplayScreen>
     final settings = ref.read(settingsProvider);
     final profile = ref.read(profileProvider);
     final size = MediaQuery.of(context).size;
-    final worldHeight = clampDouble(
-      1000 * (size.height / size.width),
-      700,
-      1600,
-    );
+    // A zero/invalid viewport must never poison the simulation with NaN.
+    final width = size.width.isFinite && size.width > 0 ? size.width : 1.0;
+    final height = size.height.isFinite && size.height > 0 ? size.height : 1.0;
+    final worldHeight = clampDouble(1000 * (height / width), 700, 1600);
     // Only an unlocked runner may contribute perks or visuals to a run.
     final character = profile.unlockedCharacters.contains(profile.character)
         ? Catalog.find(Catalog.characters, profile.character)
         : Catalog.characters.first;
+    // Normalise every cosmetic/core through the catalogue so a legacy or
+    // corrupted save can never reach the engine with an unknown ID.
+    final skinId = Catalog.find(Catalog.skins, profile.skin).id;
+    final effectId = Catalog.find(Catalog.effects, profile.effect).id;
+    final abilityId = Catalog.find(Catalog.abilities, profile.ability).id;
+    final companionId = Catalog.find(Catalog.companions, profile.companion).id;
     options = VisualOptions(
       reducedMotion: settings.reducedMotion,
       screenShake: settings.screenShake,
-      effectId: profile.effect,
-      skinId: profile.skin,
+      effectId: effectId,
+      skinId: skinId,
       characterId: character.id,
       characterColor: character.color,
+      companionId: companionId,
     );
     engine = GameEngine(
       mode: widget.launch.mode,
@@ -82,7 +88,8 @@ class _GameplayScreenState extends ConsumerState<GameplayScreen>
       objective: widget.launch.objective,
       loadout: Catalog.loadout(
         characterId: character.id,
-        abilityId: profile.ability,
+        abilityId: abilityId,
+        companionId: companionId,
       ),
     );
     engine.paused = true;

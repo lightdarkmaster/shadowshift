@@ -14,7 +14,7 @@ No account, no server, no ads, no analytics, and no network permission. All musi
 - **Core loop** — tap or swipe to phase, collect orbs only in their matching dimension, dodge obstacles, and chain dodges for up to an **x8** multiplier.
 - **Power-ups** — Phase Shield, Orb Magnet, Time Slow, and Double Score.
 - **Progression** — XP/levels, coins, 12 achievements, daily reward streaks, daily missions, persistent statistics, and best scores per mode.
-- **Shop** — five characters with distinct perks, four skins, four phase effects, and four passive cores. Everything is purchasable with coins earned in-game.
+- **Shop** — eight runners with distinct perks, eight skins, eight phase effects, eight passive cores, and four floating companions. Every cosmetic changes the runner or scene, and every runner/core/companion changes gameplay. Everything is purchasable with coins earned in-game.
 - **Accessibility** — independent music/SFX volume, haptics toggle, reduced motion, screen shake toggle, and hint toggle. The game remains completely playable with sound disabled.
 - **Polish** — Flame-driven frame loop, pure-Dart deterministic simulation, custom neon canvas rendering, glassmorphic UI, animated page transitions, lifecycle-aware pause, and corrupted-save recovery.
 
