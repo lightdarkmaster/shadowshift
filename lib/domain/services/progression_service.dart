@@ -3,7 +3,9 @@ import 'package:shadowshift/data/models/profile.dart';
 import 'package:shadowshift/domain/game/entities.dart';
 import 'package:shadowshift/domain/game/enums.dart';
 import 'package:shadowshift/domain/progression/catalog.dart';
+import 'package:shadowshift/domain/progression/ranks.dart';
 import 'package:shadowshift/domain/services/daily_service.dart';
+import 'package:shadowshift/domain/services/rank_service.dart';
 
 class RewardSummary {
   RewardSummary({
@@ -16,6 +18,14 @@ class RewardSummary {
     required this.challengeCompleted,
     required this.completedMissionIds,
     required this.isNewBest,
+    this.rankBefore,
+    this.rankAfter,
+    this.xpAwards = const [],
+    this.rankPromotions = const [],
+    this.win = false,
+    this.winStreak = 0,
+    this.duplicate = false,
+    this.invalid = false,
   });
 
   final PlayerProfile profile;
@@ -27,6 +37,16 @@ class RewardSummary {
   final ChallengeDef? challengeCompleted;
   final List<String> completedMissionIds;
   final bool isNewBest;
+  final RankTier? rankBefore;
+  final RankTier? rankAfter;
+  final List<RankXpAward> xpAwards;
+  final List<RankPromotion> rankPromotions;
+  final bool win;
+  final int winStreak;
+  final bool duplicate;
+  final bool invalid;
+
+  bool get promoted => rankPromotions.isNotEmpty;
 }
 
 /// Pure reward/economy rules. Mutates a copy of the profile so callers always
@@ -37,9 +57,43 @@ class ProgressionService {
     RunResult result, {
     DateTime? now,
   }) {
-    final profile = source.copy();
     final currentTime = now ?? DateTime.now();
     final today = dateKey(currentTime);
+    final rankBefore = source.rankTier;
+    final levelBefore = source.level;
+    final isNewBest = result.score > (source.bestScores[result.mode.name] ?? 0);
+
+    // Quitting never reaches this method in normal play, but a malformed or
+    // replayed result must also stay worthless at the domain boundary.
+    final valid = result.reason != RunEndReason.quit &&
+        result.score >= 0 &&
+        result.seconds.isFinite &&
+        result.seconds >= 0 &&
+        result.orbs >= 0 &&
+        result.switches >= 0 &&
+        result.maxCombo >= 0 &&
+        result.dodges >= 0;
+    final duplicate = result.runId.isNotEmpty &&
+        source.processedRunIds.contains(result.runId);
+    if (!valid || duplicate) {
+      return RewardSummary(
+        profile: source.copy(),
+        coins: 0,
+        xp: 0,
+        levelBefore: levelBefore,
+        levelAfter: levelBefore,
+        newAchievements: const [],
+        challengeCompleted: null,
+        completedMissionIds: const [],
+        isNewBest: false,
+        rankBefore: rankBefore,
+        rankAfter: rankBefore,
+        duplicate: duplicate,
+        invalid: !valid,
+      );
+    }
+
+    final profile = source.copy();
     if (profile.daily.date != today) {
       // Carry streak/last claim date forward so a run after midnight does not
       // break a streak that was still valid when the day changed.
@@ -49,14 +103,14 @@ class ProgressionService {
         lastRewardDate: profile.daily.lastRewardDate,
       );
     }
-    final levelBefore = profile.level;
-    final isNewBest = result.score > (profile.bestScores[result.mode.name] ?? 0);
+    if (result.runId.isNotEmpty) {
+      profile.processedRunIds.add(result.runId);
+      if (profile.processedRunIds.length > 256) {
+        profile.processedRunIds =
+            profile.processedRunIds.skip(profile.processedRunIds.length - 256).toSet();
+      }
+    }
 
-    final baseCoins = (result.score ~/ 28) + result.orbs * 2 + (result.objectiveMet ? 100 : 0);
-    final coins = baseCoins.clamp(5, 2000);
-    final xp = (result.score ~/ 16) + result.orbs * 3 + result.seconds ~/ 2;
-    profile.coins += coins;
-    profile.xp += xp;
     profile.totalRuns++;
     profile.totalOrbs += result.orbs;
     profile.totalShifts += result.switches;
@@ -75,12 +129,14 @@ class ProgressionService {
     }
 
     ChallengeDef? completedChallenge;
+    var challengeCoins = 0;
+    var challengeXp = 0;
     if (result.objectiveMet && result.challengeId != null) {
       final challenge = Challenges.byId(result.challengeId!);
       if (challenge != null && !profile.completedChallenges.contains(challenge.id)) {
         profile.completedChallenges.add(challenge.id);
-        profile.coins += challenge.rewardCoins;
-        profile.xp += challenge.rewardXp;
+        challengeCoins = challenge.rewardCoins;
+        challengeXp = challenge.rewardXp;
         completedChallenge = challenge;
       }
     }
@@ -98,26 +154,101 @@ class ProgressionService {
     }
 
     final newAchievements = <String>[];
-    for (final definition in Achievements.all) {
+    var achievementCoins = 0;
+    for (final definition in Achievements.unique) {
       if (profile.achievements.contains(definition.id)) continue;
       if (_isUnlocked(definition.id, profile, result)) {
         profile.achievements.add(definition.id);
-        profile.coins += definition.rewardCoins;
+        achievementCoins += definition.rewardCoins;
         newAchievements.add(definition.id);
       }
     }
+    final win = RankService.isWin(result, isNewBest);
+    if (win) {
+      profile.winStreak++;
+      if (profile.winStreak > profile.bestWinStreak) {
+        profile.bestWinStreak = profile.winStreak;
+      }
+    } else {
+      profile.winStreak = 0;
+    }
+
+    // One reward calculation feeds both the stored profile and the live HUD
+    // preview, so tweaking an award can never make them disagree.
+    final preview = previewRunRewards(
+      result,
+      isNewBest: isNewBest,
+      winStreak: profile.winStreak,
+      // Only suppress objective XP when the challenge actually paid this run;
+      // replaying a finished challenge still earns the objective award.
+      objectiveAlreadyRewarded: challengeXp > 0,
+      challengeRewardCoins: challengeCoins,
+      challengeRewardXp: challengeXp,
+      achievementRewardCoins: achievementCoins,
+      newAchievementIds: newAchievements,
+    );
+    final awards = preview.awards;
+    profile.coins += preview.coins;
+    final promotions = RankService.grantXp(
+      profile,
+      preview.xp,
+      currentTime,
+      achievementIds: newAchievements,
+    );
 
     return RewardSummary(
       profile: profile,
-      coins: coins,
-      xp: xp,
+      coins: preview.coins,
+      xp: preview.xp,
       levelBefore: levelBefore,
       levelAfter: profile.level,
       newAchievements: newAchievements,
       challengeCompleted: completedChallenge,
       completedMissionIds: completedMissions,
       isNewBest: isNewBest,
+      rankBefore: rankBefore,
+      rankAfter: profile.rankTier,
+      xpAwards: awards,
+      rankPromotions: promotions,
+      win: win,
+      winStreak: profile.winStreak,
     );
+  }
+
+  /// Preview of the rewards a run has earned so far. Shares the economy rules
+  /// with [applyRun] so an in-game HUD can never show a gain settlement won't
+  /// actually pay. Callers that don't yet know an achievement/mission outcome
+  /// simply leave those bonuses at zero.
+  static ({
+    int coins,
+    int xp,
+    List<RankXpAward> awards,
+  }) previewRunRewards(
+    RunResult result, {
+    required bool isNewBest,
+    required int winStreak,
+    bool objectiveAlreadyRewarded = false,
+    int challengeRewardCoins = 0,
+    int challengeRewardXp = 0,
+    int achievementRewardCoins = 0,
+    List<String> newAchievementIds = const [],
+  }) {
+    final baseCoins = (result.score ~/ 28) +
+        result.orbs * 2 +
+        (result.objectiveMet ? 100 : 0);
+    final coins = baseCoins.clamp(5, 2000) +
+        challengeRewardCoins +
+        achievementRewardCoins;
+    final awards = RankService.runAwards(
+      result: result,
+      isNewBest: isNewBest,
+      objectiveAlreadyRewarded: objectiveAlreadyRewarded,
+      winStreak: winStreak,
+      challengeRewardXp: challengeRewardXp,
+      newAchievementIds: newAchievementIds,
+    );
+    final xp = awards.fold<int>(0, (sum, award) => sum + award.amount);
+    return (coins: coins, xp: xp, awards: awards);
   }
 
   static bool _isUnlocked(String id, PlayerProfile p, RunResult r) => switch (id) {
@@ -133,6 +264,26 @@ class ProgressionService {
         'runs_25' => p.totalRuns >= 25,
         'challenges_3' => p.completedChallenges.length >= 3,
         'level_10' => p.level >= 10,
+        'orbs_1000' => p.totalOrbs >= 1000,
+        'shifts_100' => p.totalShifts >= 100,
+        'survive_120' => r.seconds >= 120,
+        'combo_35' => p.bestCombo >= 35,
+        'runs_10' => p.totalRuns >= 10,
+        'runs_50' => p.totalRuns >= 50,
+        'streak_3' => p.bestWinStreak >= 3,
+        'streak_7' => p.bestWinStreak >= 7,
+        'time_attack_2k' => p.bestTimeAttackScore >= 2000 ||
+            (r.mode == GameMode.timeAttack && r.score >= 2000),
+        'daily_1500' => p.dailyBestScore >= 1500 ||
+            (r.mode == GameMode.daily && r.score >= 1500),
+        'level_20' => p.level >= 20,
+        'challenges_6' => p.completedChallenges.length >= Challenges.all.length,
+        'rank_phantom' => RankConfig.forXp(p.xp).minXp >= 3000,
+        'full_kit' => p.unlockedCharacters.length >= 2 &&
+            p.unlockedSkins.length >= 2 &&
+            p.unlockedEffects.length >= 2 &&
+            p.unlockedAbilities.length >= 2 &&
+            p.unlockedCompanions.length >= 2,
         _ => false,
       };
 
@@ -182,7 +333,7 @@ class ProgressionService {
     final next = source.copy();
     next.daily.claimedMissions.add(missionId);
     next.coins += rewardCoins;
-    next.xp += rewardXp;
+    RankService.grantXp(next, rewardXp, now);
     return next;
   }
 

@@ -583,7 +583,112 @@ abstract final class Achievements {
       rewardCoins: 300,
       icon: Icons.military_tech,
     ),
+    AchievementDef(
+      id: 'orbs_1000',
+      title: 'ORB SINGULARITY',
+      description: 'Collect 1,000 energy orbs in total.',
+      rewardCoins: 350,
+      icon: Icons.auto_awesome,
+    ),
+    AchievementDef(
+      id: 'shifts_100',
+      title: 'PHASE APPRENTICE',
+      description: 'Switch dimensions 100 times in total.',
+      rewardCoins: 90,
+      icon: Icons.compare_arrows,
+    ),
+    AchievementDef(
+      id: 'survive_120',
+      title: 'ENDURANCE RUN',
+      description: 'Survive 120 seconds in a single run.',
+      rewardCoins: 300,
+      icon: Icons.schedule,
+    ),
+    AchievementDef(
+      id: 'combo_35',
+      title: 'INFINITE CHAIN',
+      description: 'Reach a x8 combo multiplier.',
+      rewardCoins: 500,
+      icon: Icons.all_inclusive,
+    ),
+    AchievementDef(
+      id: 'runs_10',
+      title: 'WARM UP',
+      description: 'Complete 10 runs.',
+      rewardCoins: 100,
+      icon: Icons.directions_run,
+    ),
+    AchievementDef(
+      id: 'runs_50',
+      title: 'IRON WILL',
+      description: 'Complete 50 runs.',
+      rewardCoins: 350,
+      icon: Icons.local_fire_department,
+    ),
+    AchievementDef(
+      id: 'streak_3',
+      title: 'ON A ROLL',
+      description: 'Win 3 runs in a row.',
+      rewardCoins: 180,
+      icon: Icons.trending_up,
+    ),
+    AchievementDef(
+      id: 'streak_7',
+      title: 'UNSTOPPABLE',
+      description: 'Win 7 runs in a row.',
+      rewardCoins: 450,
+      icon: Icons.whatshot,
+    ),
+    AchievementDef(
+      id: 'time_attack_2k',
+      title: 'SPRINT MASTER',
+      description: 'Score 2,000 points in Time Attack.',
+      rewardCoins: 220,
+      icon: Icons.speed,
+    ),
+    AchievementDef(
+      id: 'daily_1500',
+      title: 'DAILY DOMINATOR',
+      description: 'Score 1,500 points in a Daily Challenge.',
+      rewardCoins: 260,
+      icon: Icons.event_available,
+    ),
+    AchievementDef(
+      id: 'level_20',
+      title: 'ELITE OPERATIVE',
+      description: 'Reach player level 20.',
+      rewardCoins: 600,
+      icon: Icons.workspace_premium,
+    ),
+    AchievementDef(
+      id: 'challenges_6',
+      title: 'ALL CLEAR',
+      description: 'Complete all six challenges.',
+      rewardCoins: 600,
+      icon: Icons.task_alt,
+    ),
+    AchievementDef(
+      id: 'rank_phantom',
+      title: 'PHANTOM RISEN',
+      description: 'Reach the Phantom rank.',
+      rewardCoins: 400,
+      icon: Icons.visibility_off,
+    ),
+    AchievementDef(
+      id: 'full_kit',
+      title: 'FULL KIT',
+      description: 'Own an upgrade in every shop category.',
+      rewardCoins: 500,
+      icon: Icons.checklist,
+    ),
   ];
+
+  /// Defensive view for UI and reward settlement: unknown or duplicated IDs
+  /// can never produce repeated cards or repeated coin grants.
+  static final List<AchievementDef> unique = () {
+    final seen = <String>{};
+    return all.where((achievement) => seen.add(achievement.id)).toList(growable: false);
+  }();
 
   static AchievementDef? byId(String id) {
     for (final achievement in all) {

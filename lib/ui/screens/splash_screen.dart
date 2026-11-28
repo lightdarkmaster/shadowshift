@@ -79,7 +79,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Image.asset(
-                        'assets/images/shadowshift_logo.png',
+                        'assets/images/shadowshift_neon_logo.png',
                         width: 136,
                         height: 136,
                         fit: BoxFit.contain,

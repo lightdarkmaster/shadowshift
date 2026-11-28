@@ -399,7 +399,7 @@ class GameEngine {
         : GameEvent.gameOver);
   }
 
-  RunResult result({String? challengeId}) => RunResult(
+  RunResult result({String? challengeId, String runId = ''}) => RunResult(
         mode: mode,
         score: score,
         seconds: elapsed,
@@ -411,6 +411,7 @@ class GameEngine {
         objective: objective,
         seed: seed,
         challengeId: challengeId,
+        runId: runId,
       );
 }
 

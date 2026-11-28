@@ -6,6 +6,7 @@ import 'package:shadowshift/domain/services/audio_service.dart';
 import 'package:shadowshift/state/app_providers.dart';
 import 'package:shadowshift/ui/widgets/app_scaffold.dart';
 import 'package:shadowshift/ui/widgets/design.dart';
+import 'package:shadowshift/ui/widgets/notice_dialog.dart';
 import 'package:shadowshift/ui/widgets/shop_item_dialog.dart';
 
 class ShopScreen extends ConsumerWidget {
@@ -217,11 +218,14 @@ class _ItemList extends ConsumerWidget {
 
     final profile = ref.read(profileProvider);
     if (profile.coins < item.price) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Not enough coins. Play a run to earn more.'),
-          backgroundColor: AppColors.surfaceLight,
-        ),
+      showNoticeDialog(
+        context,
+        title: 'INSUFFICIENT COINS',
+        message: 'You need ${item.price} coins for ${item.name}. '
+            'Play a run to earn more.',
+        tone: NoticeTone.error,
+        icon: Icons.sentiment_dissatisfied,
+        badgeIcon: Icons.monetization_on,
       );
     }
   }

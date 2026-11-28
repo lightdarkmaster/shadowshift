@@ -78,6 +78,7 @@ abstract final class WavSynth {
         'shield' => 0.3,
         'ui' => 0.07,
         'achievement' => 0.7,
+        'rank_up' => 1.15,
         _ => 0.05,
       };
 
@@ -106,6 +107,13 @@ abstract final class WavSynth {
           final notes = [523.25, 659.25, 783.99, 1046.5];
           final step = (t / 0.175).floor().clamp(0, 3);
           return tone(t - step * 0.175, notes[step], 7) * 0.24;
+        }),
+      'rank_up' => build(sfxSeconds(name), (t, i) {
+          final notes = [392.0, 523.25, 659.25, 783.99, 1046.5];
+          final step = (t / 0.19).floor().clamp(0, 4);
+          final local = t - step * 0.19;
+          return tone(local, notes[step], 8) * 0.26 +
+              tone(local, notes[step] * 2, 14) * 0.08;
         }),
       _ => build(sfxSeconds(name), (t, i) => 0.0),
     };
@@ -145,7 +153,16 @@ class AudioService {
         WavSynth.byteLength(8),
         () => WavSynth.build(8, WavSynth.music()),
       );
-      for (final name in ['switch', 'collect', 'power', 'crash', 'shield', 'ui', 'achievement']) {
+      for (final name in [
+        'switch',
+        'collect',
+        'power',
+        'crash',
+        'shield',
+        'ui',
+        'achievement',
+        'rank_up',
+      ]) {
         await _write(
           '$name.wav',
           WavSynth.byteLength(WavSynth.sfxSeconds(name)),
@@ -269,6 +286,7 @@ class AudioService {
   }
 
   Future<void> achievement() => playSfx('achievement');
+  Future<void> rankUp() => playSfx('rank_up');
   Future<void> ui() => playSfx('ui');
 
   Future<void> setMusicActive(bool active) async {

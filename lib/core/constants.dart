@@ -23,7 +23,7 @@ abstract final class GameConfig {
 }
 
 abstract final class AppStrings {
-  static const appName = 'SHADOW SHIFT';
+  static const appName = 'SHADOW SHIFT NEON';
   static const tagline = 'PHASE. DODGE. SURVIVE.';
   static const version = '1.0.0';
 }
@@ -78,4 +78,8 @@ abstract final class AppGradients {
 abstract final class StorageKeys {
   static const profile = 'shadowshift.profile.v1';
   static const settings = 'shadowshift.settings.v1';
+
+  /// Kept under a distinct key so multiplayer data can never be decoded into
+  /// the single-player profile (or vice versa).
+  static const multiplayer = 'shadowshift.multiplayer.v1';
 }

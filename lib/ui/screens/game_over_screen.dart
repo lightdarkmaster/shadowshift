@@ -6,16 +6,22 @@ import 'package:shadowshift/domain/game/entities.dart';
 import 'package:shadowshift/domain/game/difficulty.dart';
 import 'package:shadowshift/domain/game/enums.dart';
 import 'package:shadowshift/domain/progression/catalog.dart';
+import 'package:shadowshift/domain/progression/ranks.dart';
 import 'package:shadowshift/domain/services/launch_service.dart';
 import 'package:shadowshift/domain/services/progression_service.dart';
+import 'package:shadowshift/domain/services/rank_service.dart';
+import 'package:shadowshift/state/app_providers.dart';
 import 'package:shadowshift/ui/navigation.dart';
 import 'package:shadowshift/ui/screens/gameplay_screen.dart';
 import 'package:shadowshift/ui/screens/main_menu.dart';
 import 'package:shadowshift/ui/screens/mode_selection.dart';
 import 'package:shadowshift/ui/widgets/app_scaffold.dart';
 import 'package:shadowshift/ui/widgets/design.dart';
+import 'package:shadowshift/ui/widgets/rank_emblem.dart';
+import 'package:shadowshift/ui/widgets/rank_up_dialog.dart';
+import 'package:shadowshift/ui/widgets/xp_gain_notification.dart';
 
-class GameOverScreen extends ConsumerWidget {
+class GameOverScreen extends ConsumerStatefulWidget {
   const GameOverScreen({
     super.key,
     required this.result,
@@ -28,7 +34,45 @@ class GameOverScreen extends ConsumerWidget {
   final GameLaunch launch;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GameOverScreen> createState() => _GameOverScreenState();
+}
+
+class _GameOverScreenState extends ConsumerState<GameOverScreen> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.summary.promoted && widget.summary.rankPromotions.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showRankUpDialogs();
+      });
+    }
+  }
+
+  /// Runs only after the report is visible, so rank-ups are announced after
+  /// the game instead of flashing over the gameplay screen.
+  Future<void> _showRankUpDialogs() async {
+    final promotions = widget.summary.rankPromotions;
+    final playerName = ref.read(profileProvider).playerName;
+    for (var i = 0; i < promotions.length; i++) {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => RankUpDialog(
+          promotion: promotions[i],
+          index: i,
+          total: promotions.length,
+          playerName: playerName,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final result = widget.result;
+    final summary = widget.summary;
+    final launch = widget.launch;
     final success = result.objectiveMet;
     final title = switch (result.reason) {
       RunEndReason.collision => 'SIGNAL LOST',
@@ -137,7 +181,80 @@ class GameOverScreen extends ConsumerWidget {
                       ],
                     ],
                   ),
-                  if (summary.challengeCompleted != null) ...[
+                  if (summary.xpAwards.isNotEmpty) ...[
+                     const SizedBox(height: 12),
+                     XpGainNotification(
+                       awards: summary.xpAwards,
+                       total: summary.xp,
+                     ),
+                   ],
+                   if (summary.promoted && summary.rankAfter != null) ...[
+                     const SizedBox(height: 12),
+                     Container(
+                       padding: const EdgeInsets.symmetric(
+                         horizontal: AppLayout.md,
+                         vertical: AppLayout.sm,
+                       ),
+                       decoration: BoxDecoration(
+                         color: summary.rankAfter!.color.withValues(alpha: 0.12),
+                         borderRadius: BorderRadius.circular(AppRadius.chip),
+                         border: Border.all(
+                           color: summary.rankAfter!.color.withValues(alpha: 0.45),
+                         ),
+                       ),
+                       child: Row(
+                         children: [
+                           RankEmblem(
+                             tier: summary.rankAfter!,
+                             size: 36,
+                             animate: false,
+                           ),
+                           const SizedBox(width: AppLayout.sm),
+                           Expanded(
+                             child: Column(
+                               crossAxisAlignment: CrossAxisAlignment.start,
+                               children: [
+                                 Text(
+                                   'RANK UP: ${summary.rankAfter!.name}',
+                                   style: TextStyle(
+                                     color: summary.rankAfter!.color,
+                                     fontSize: 12,
+                                     fontWeight: FontWeight.w900,
+                                     letterSpacing: 1,
+                                   ),
+                                 ),
+                                 Text(
+                                   'from ${(summary.rankBefore ?? RankConfig.all.first).name}',
+                                   style: const TextStyle(
+                                     fontSize: 10,
+                                     color: AppColors.muted,
+                                   ),
+                                 ),
+                               ],
+                             ),
+                           ),
+                         ],
+                       ),
+                     ),
+                   ],
+                   if (summary.winStreak > 1)
+                     Padding(
+                       padding: const EdgeInsets.only(top: 8),
+                       child: _RewardLine(
+                         icon: Icons.local_fire_department,
+                         text: 'Win streak: ${summary.winStreak}',
+                         detail: '+${RankService.streakBonus(summary.winStreak)} XP',
+                       ),
+                     ),
+                   if (summary.duplicate || summary.invalid)
+                     const Padding(
+                       padding: EdgeInsets.only(top: 8),
+                       child: _RewardLine(
+                         icon: Icons.info_outline,
+                         text: 'This match was not eligible for rewards.',
+                       ),
+                     ),
+                   if (summary.challengeCompleted != null) ...[
                     const SizedBox(height: 12),
                     _RewardLine(
                       icon: Icons.check_circle,

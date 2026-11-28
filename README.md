@@ -1,4 +1,4 @@
-# SHADOW SHIFT
+# SHADOW SHIFT NEON
 
 A fast, fully offline, neon-noir endless runner for Android. Phase between **Light** and **Shadow** to dodge procedurally generated obstacles, collect energy orbs, build combos, and unlock every runner, skin, core, and effect through gameplay.
 
@@ -13,7 +13,8 @@ No account, no server, no ads, no analytics, and no network permission. All musi
   - **Daily Challenge** — a deterministic run and three missions seeded from the local date.
 - **Core loop** — tap or swipe to phase, collect orbs only in their matching dimension, dodge obstacles, and chain dodges for up to an **x8** multiplier.
 - **Power-ups** — Phase Shield, Orb Magnet, Time Slow, and Double Score.
-- **Progression** — XP/levels, coins, 12 achievements, daily reward streaks, daily missions, persistent statistics, and best scores per mode.
+- **Multiplayer** — offline turn-based hot-seat matches for 2–6 players over 1–5 rounds, with fresh engine state per turn, per-round score tables, tie-aware winners, match history, and a separate multiplayer wallet/XP/statistics save.
+- **Progression** — XP/levels, coins, 26 achievements, daily reward streaks, daily missions, persistent statistics, and best scores per mode.
 - **Shop** — eight runners with distinct perks, eight skins, eight phase effects, eight passive cores, and four floating companions. Every cosmetic changes the runner or scene, and every runner/core/companion changes gameplay. Everything is purchasable with coins earned in-game.
 - **Accessibility** — independent music/SFX volume, haptics toggle, reduced motion, screen shake toggle, and hint toggle. The game remains completely playable with sound disabled.
 - **Polish** — Flame-driven frame loop, pure-Dart deterministic simulation, custom neon canvas rendering, glassmorphic UI, animated page transitions, lifecycle-aware pause, and corrupted-save recovery.
@@ -41,17 +42,19 @@ No account, no server, no ads, no analytics, and no network permission. All musi
 10. Missions
 11. Statistics
 12. Settings
+13. Multiplayer home, setup, turn transition, gameplay, results, history, and match detail
 
 ## Architecture
 
 - `lib/core/` — tuning constants, colors, theme, and shared utilities.
 - `lib/data/` — validated JSON models and a `SharedPreferences` repository.
 - `lib/domain/game/` — pure-Dart engine, difficulty curve, RNG, scoring, and entities.
+- `lib/domain/multiplayer/` — isolated match models, turn state, and multiplayer-only reward math.
 - `lib/domain/progression/` — shop catalog, challenges, achievements, and missions.
 - `lib/domain/services/` — run rewards, launches, deterministic daily generation, and local audio synthesis.
-- `lib/state/` — lightweight Riverpod notifiers for profile and settings.
+- `lib/state/` — lightweight Riverpod notifiers for the solo profile, settings, and the separate multiplayer save.
 - `lib/game/` — Flame lifecycle bridge and the single-pass `CustomPainter` renderer.
-- `lib/ui/` — 12 screens and reusable design widgets.
+- `lib/ui/` — single-player and multiplayer screens plus reusable design widgets.
 
 The simulation runs in virtual world units (`1000` wide), so obstacle timing and fairness are identical across portrait screen sizes. Rendering is a single canvas pass with capped particles and clamped delta time for stable 60fps play.
 
@@ -80,7 +83,8 @@ For a release build on a machine with a configured signing identity, add `--spli
 - No HTTP clients, remote assets, social SDKs, ads, or cloud saves.
 - Daily content uses the device clock and a local hash; it works in airplane mode.
 - Audio WAV files are generated into the app's documents directory on first launch.
-- Progress is stored locally in `SharedPreferences` keys `shadowshift.profile.v1` and `shadowshift.settings.v1`. Malformed saves fall back to a valid default profile.
+- Progress is stored locally in `SharedPreferences` keys `shadowshift.profile.v1`, `shadowshift.settings.v1`, and the entirely separate `shadowshift.multiplayer.v1`. Malformed saves fall back to valid defaults.
+- Multiplayer gold, XP, stats, and history never enter the single-player profile, achievements, missions, ranks, or overall completion. Interrupted matches stay incomplete and earn no final rewards.
 - No permissions beyond those required by the Flutter runtime are declared by the app.
 
 ## Tests
@@ -91,4 +95,5 @@ For a release build on a machine with a configured signing identity, add `--spli
 - Deterministic seeds and a 90-second reactive-player fairness simulation.
 - Daily challenge/mission determinism, reward claims, sequential unlocks, purchase rules, level curve, and save validation.
 - Repository round-trips, corrupted data recovery, and stale daily-state resets.
-- Widget smoke tests for splash → menu → mode selection → challenge selection navigation.
+- Multiplayer turn ordering, tie winners, one-time rewards, interrupted-match safety, and solo/multiplayer storage separation.
+- Widget smoke tests for splash → menu → mode selection → challenge selection navigation and the isolated multiplayer card/setup flow.

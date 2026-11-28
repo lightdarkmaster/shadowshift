@@ -34,6 +34,18 @@ RunResult result({
 }
 
 void main() {
+  group('achievement catalog', () {
+    test('achievement ids are unique and resolvable', () {
+      final ids = Achievements.all.map((achievement) => achievement.id).toList();
+      expect(ids.length, 26);
+      expect(ids.toSet().length, ids.length);
+      expect(Achievements.unique.length, ids.length);
+      for (final achievement in Achievements.all) {
+        expect(Achievements.byId(achievement.id), same(achievement));
+      }
+    });
+  });
+
   group('daily generation', () {
     final date = DateTime(2026, 11, 27);
 
@@ -76,6 +88,56 @@ void main() {
       expect(summary.xp, greaterThan(0));
       expect(summary.newAchievements, contains('first_run'));
       expect(summary.isNewBest, isTrue);
+    });
+
+    test('new milestones unlock once and never repeat', () {
+      final profile = PlayerProfile(
+        xp: 30000,
+        totalRuns: 9,
+        totalOrbs: 999,
+        totalShifts: 99,
+        bestCombo: 35,
+        bestWinStreak: 7,
+        bestTimeAttackScore: 2000,
+        dailyBestScore: 1500,
+        completedChallenges: Challenges.all.map((c) => c.id).toSet(),
+        unlockedCharacters: {'nyx', 'flux'},
+        unlockedSkins: {'aurora', 'ember'},
+        unlockedEffects: {'classic', 'pulse'},
+        unlockedAbilities: {'none', 'overclock'},
+        unlockedCompanions: {'none', 'wisp'},
+      );
+
+      final first = ProgressionService.applyRun(
+        profile,
+        result(seconds: 121),
+        now: now,
+      );
+      expect(
+        first.newAchievements,
+        containsAll([
+          'orbs_1000',
+          'shifts_100',
+          'survive_120',
+          'combo_35',
+          'runs_10',
+          'streak_3',
+          'streak_7',
+          'time_attack_2k',
+          'daily_1500',
+          'level_20',
+          'challenges_6',
+          'rank_phantom',
+          'full_kit',
+        ]),
+      );
+
+      final second = ProgressionService.applyRun(
+        first.profile,
+        result(seconds: 121),
+        now: now.add(const Duration(minutes: 1)),
+      );
+      expect(second.newAchievements, isEmpty);
     });
 
     test('best score is not overwritten by a worse run', () {

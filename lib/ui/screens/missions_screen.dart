@@ -7,6 +7,7 @@ import 'package:shadowshift/domain/services/daily_service.dart';
 import 'package:shadowshift/state/app_providers.dart';
 import 'package:shadowshift/ui/widgets/app_scaffold.dart';
 import 'package:shadowshift/ui/widgets/design.dart';
+import 'package:shadowshift/ui/widgets/notice_dialog.dart';
 
 class MissionsScreen extends ConsumerWidget {
   const MissionsScreen({super.key});
@@ -130,11 +131,13 @@ class MissionsScreen extends ConsumerWidget {
                                         mission.rewardXp,
                                       );
                                   if (earned > 0) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Mission claimed: +$earned coins'),
-                                        backgroundColor: AppColors.surfaceLight,
-                                      ),
+                                    showNoticeDialog(
+                                      context,
+                                      title: 'MISSION COMPLETE',
+                                      message: 'You claimed +$earned energy coins '
+                                          'and +${mission.rewardXp} XP.',
+                                      tone: NoticeTone.success,
+                                      badgeIcon: Icons.monetization_on,
                                     );
                                   }
                                 },

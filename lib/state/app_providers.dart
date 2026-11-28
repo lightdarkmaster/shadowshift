@@ -6,8 +6,11 @@ import 'package:shadowshift/data/models/app_settings.dart';
 import 'package:shadowshift/data/models/profile.dart';
 import 'package:shadowshift/data/repositories/storage_repository.dart';
 import 'package:shadowshift/domain/game/entities.dart';
+import 'package:shadowshift/domain/multiplayer/multiplayer_models.dart';
+import 'package:shadowshift/domain/progression/ranks.dart';
 import 'package:shadowshift/domain/services/audio_service.dart';
 import 'package:shadowshift/domain/services/progression_service.dart';
+import 'package:shadowshift/state/rank_providers.dart';
 
 final storageProvider = Provider<StorageRepository>((ref) {
   throw UnimplementedError('StorageRepository must be overridden at startup.');
@@ -21,6 +24,13 @@ final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(
   SettingsNotifier.new,
 );
 
+/// Deliberately separate from [profileProvider]. It loads from a different
+/// storage key and never reads, writes, or rewards the single-player profile.
+final multiplayerProfileProvider =
+    NotifierProvider<MultiplayerProfileNotifier, MultiplayerProfile>(
+  MultiplayerProfileNotifier.new,
+);
+
 class ProfileNotifier extends Notifier<PlayerProfile> {
   @override
   PlayerProfile build() {
@@ -31,14 +41,28 @@ class ProfileNotifier extends Notifier<PlayerProfile> {
     return profile.copy()..daily = profile.daily.copyWithDate(key);
   }
 
-  void _commit(PlayerProfile profile) {
+  void _commit(PlayerProfile profile, {bool announceRankUps = true}) {
+    final previousXp = state.xp;
     state = profile;
+    if (announceRankUps && profile.xp > previousXp) {
+      final promotions = RankConfig.promotionsBetween(
+        previousXp,
+        profile.xp,
+        DateTime.now(),
+        earnedXp: profile.xp - previousXp,
+      );
+      ref.read(pendingRankUpsProvider.notifier).enqueue(promotions);
+    }
+    // All related records live in this one JSON blob, so one write is the
+    // transaction boundary for XP, rank, history and rewards.
     ref.read(storageProvider).saveProfile(profile);
   }
 
   RewardSummary applyRun(RunResult result) {
     final summary = ProgressionService.applyRun(state, result);
-    _commit(summary.profile);
+    // Run promotions are announced by GameOverScreen from the summary, so the
+    // dialog appears on the run report instead of over live gameplay.
+    _commit(summary.profile, announceRankUps: false);
     return summary;
   }
 
@@ -94,6 +118,19 @@ class ProfileNotifier extends Notifier<PlayerProfile> {
     _commit(state.copy()..companion = id);
   }
 
+  bool equipTitle(String titleId) {
+    if (!state.unlockedTitles.contains(titleId)) return false;
+    if (state.equippedTitle == titleId) return true;
+    _commit(state.copy()..equippedTitle = titleId);
+    return true;
+  }
+
+  void setPlayerName(String raw) {
+    final name = RankConfig.sanitizePlayerName(raw);
+    if (name == state.playerName) return;
+    _commit(state.copy()..playerName = name);
+  }
+
   int claimMission(String id, int coins, int xp) {
     final next = ProgressionService.claimMission(state, id, coins, xp, DateTime.now());
     if (next == null) return 0;
@@ -116,7 +153,59 @@ class ProfileNotifier extends Notifier<PlayerProfile> {
     }
   }
 
-  void resetProgress() => _commit(PlayerProfile());
+  void resetProgress() {
+    ref.read(pendingRankUpsProvider.notifier).clear();
+    _commit(PlayerProfile());
+  }
+}
+
+/// Owns the entire offline multiplayer save. No method here touches XP, gold,
+/// achievements, missions, ranks, or any other single-player state.
+class MultiplayerProfileNotifier extends Notifier<MultiplayerProfile> {
+  @override
+  MultiplayerProfile build() => ref.read(storageProvider).loadMultiplayerProfile();
+
+  void _commit(MultiplayerProfile profile) {
+    state = profile;
+    ref.read(storageProvider).saveMultiplayerProfile(profile);
+  }
+
+  MultiplayerMatchRecord startMatch(List<String> players, int rounds) {
+    final names = players
+        .map((name) => name.trim())
+        .where((name) => name.isNotEmpty)
+        .toList();
+    if (names.length < 2 || rounds < 1 || rounds > 20) {
+      throw ArgumentError('A multiplayer match needs 2-6 players and 1-20 rounds.');
+    }
+    final now = DateTime.now();
+    final record = MultiplayerMatchRecord.start(
+      id: MultiplayerService.newMatchId(now),
+      playedAt: now,
+      players: names,
+      rounds: rounds.clamp(1, 20),
+    );
+    _commit(MultiplayerService.saveActiveMatch(state, record));
+    return record;
+  }
+
+  /// Persists one completed turn immediately so an interrupted match can be
+  /// resumed without replaying or double-awarding earlier turns.
+  void recordTurn(MultiplayerMatchRecord record, int score) {
+    final updated = MultiplayerSession.fromRecord(record).recordScore(score).record;
+    _commit(MultiplayerService.saveActiveMatch(state, updated));
+  }
+
+  MultiplayerProfile completeMatch(MultiplayerMatchRecord record) {
+    // A record that somehow reaches this path with gaps stays in progress.
+    if (!record.allTurnsRecorded) return state;
+    final next = MultiplayerService.completeMatch(state, record);
+    if (next.history.length == state.history.length) return state;
+    _commit(next);
+    return next;
+  }
+
+  void clearActiveMatch() => _commit(state.copyWith(clearActiveMatch: true));
 }
 
 extension DailyStateX on DailyState {

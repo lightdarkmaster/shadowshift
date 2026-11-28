@@ -1,11 +1,11 @@
 {
-    "name": "shadowshift",
-    "short_name": "shadowshift",
+    "name": "Shadow Shift Neon",
+    "short_name": "Shadow Shift Neon",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#05060F",
+    "theme_color": "#05060F",
+    "description": "A fast, fully offline neon-noir arcade runner.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

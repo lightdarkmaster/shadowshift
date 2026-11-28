@@ -13,11 +13,15 @@ import 'package:shadowshift/ui/screens/character_selection.dart';
 import 'package:shadowshift/ui/screens/gameplay_screen.dart';
 import 'package:shadowshift/ui/screens/missions_screen.dart';
 import 'package:shadowshift/ui/screens/mode_selection.dart';
+import 'package:shadowshift/ui/screens/multiplayer/multiplayer_home_screen.dart';
+import 'package:shadowshift/ui/screens/rank_screen.dart';
 import 'package:shadowshift/ui/screens/settings_screen.dart';
 import 'package:shadowshift/ui/screens/shop_screen.dart';
 import 'package:shadowshift/ui/screens/statistics_screen.dart';
 import 'package:shadowshift/ui/widgets/about_dialog.dart';
 import 'package:shadowshift/ui/widgets/design.dart';
+import 'package:shadowshift/ui/widgets/notice_dialog.dart';
+import 'package:shadowshift/ui/widgets/rank_emblem.dart';
 import 'package:shadowshift/ui/widgets/space_background.dart';
 
 class MainMenu extends ConsumerWidget {
@@ -26,6 +30,9 @@ class MainMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
+    // Read-only peek at the isolated multiplayer save for the home card. It
+    // never feeds coins/XP/stats back into this single-player menu.
+    final multiplayer = ref.watch(multiplayerProfileProvider);
     final reducedMotion = ref.watch(settingsProvider.select((s) => s.reducedMotion));
     final best = profile.bestScores.values.isEmpty
         ? 0
@@ -82,7 +89,7 @@ class MainMenu extends ConsumerWidget {
                                     borderRadius:
                                         BorderRadius.circular(AppRadius.card),
                                     child: Image.asset(
-                                      'assets/images/shadowshift_logo.png',
+                                      'assets/images/shadowshift_neon_logo.png',
                                       width: wide ? 104 : compact ? 72 : 88,
                                       height: wide ? 104 : compact ? 72 : 88,
                                       fit: BoxFit.contain,
@@ -115,6 +122,7 @@ class MainMenu extends ConsumerWidget {
                           const SizedBox(height: AppLayout.xl),
                           GlassCard(
                             padding: const EdgeInsets.all(AppLayout.lg),
+                            borderColor: profile.rankTier.color.withValues(alpha: 0.42),
                             child: Column(
                               children: [
                                 Row(
@@ -153,6 +161,66 @@ class MainMenu extends ConsumerWidget {
                                   current: profile.xpInLevel,
                                   total: profile.xpForNextLevel,
                                 ),
+                                const SizedBox(height: AppLayout.sm),
+                                Row(
+                                  children: [
+                                    RankEmblem(
+                                      tier: profile.rankTier,
+                                      size: 30,
+                                      animate: false,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  profile.playerName,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w900,
+                                                    letterSpacing: 0.8,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Flexible(
+                                                child: Text(
+                                                  profile.rankTier.name,
+                                                  textAlign: TextAlign.end,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    color:
+                                                        profile.rankTier.color,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w900,
+                                                    letterSpacing: 0.8,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            profile.equippedTitleName,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: AppColors.muted,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ],
                             ),
                           ),
@@ -170,11 +238,13 @@ class MainMenu extends ConsumerWidget {
                                     .claimDailyReward();
                                 if (coins <= 0) return;
                                 AudioService.instance.achievement();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Daily reward claimed: +$coins coins'),
-                                    backgroundColor: AppColors.surfaceLight,
-                                  ),
+                                showNoticeDialog(
+                                  context,
+                                  title: 'DAILY REWARD CLAIMED',
+                                  message: 'You collected +$coins energy coins. '
+                                      'Come back tomorrow for more.',
+                                  tone: NoticeTone.success,
+                                  badgeIcon: Icons.monetization_on,
                                 );
                               },
                               child: Row(
@@ -231,6 +301,18 @@ class MainMenu extends ConsumerWidget {
                             },
                           ),
                           const SizedBox(height: AppLayout.sectionGap),
+                          _MultiplayerCard(
+                            gamesPlayed: multiplayer.gamesPlayed,
+                            recentResult: multiplayer.recentMatch == null
+                                ? 'No matches yet — start the first one.'
+                                : '${multiplayer.recentMatch!.winnerNames.join(' & ')}'
+                                    ' won with ${formatScore(multiplayer.recentMatch!.winningScore)} pts',
+                            onTap: () => pushScreen(
+                              context,
+                              const MultiplayerHomeScreen(),
+                            ),
+                          ),
+                          const SizedBox(height: AppLayout.sectionGap),
                           const SectionTitle(
                             'COMMAND DECK',
                             subtitle: 'Everything is available offline',
@@ -262,6 +344,15 @@ class MainMenu extends ConsumerWidget {
                                 onTap: () => pushScreen(
                                   context,
                                   const AchievementsScreen(),
+                                ),
+                              ),
+                              _menuTile(
+                                icon: Icons.emoji_events,
+                                label: 'RANKS',
+                                color: const Color(0xFF7DFFB2),
+                                onTap: () => pushScreen(
+                                  context,
+                                  const RankScreen(),
                                 ),
                               ),
                               _menuTile(
@@ -312,6 +403,114 @@ class MainMenu extends ConsumerWidget {
       label: label,
       color: color,
       onTap: onTap,
+    );
+  }
+}
+
+/// Dedicated home entry point for the entirely separate local multiplayer
+/// mode. Its stats come from [multiplayerProfileProvider], never [profileProvider].
+class _MultiplayerCard extends StatelessWidget {
+  const _MultiplayerCard({
+    required this.gamesPlayed,
+    required this.recentResult,
+    required this.onTap,
+  });
+
+  final int gamesPlayed;
+  final String recentResult;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: const EdgeInsets.all(AppLayout.lg),
+      borderColor: AppColors.blue.withValues(alpha: 0.38),
+      onTap: () {
+        AudioService.instance.ui();
+        onTap();
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.violet.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(AppRadius.iconTile),
+                  border: Border.all(color: AppColors.violet.withValues(alpha: 0.42)),
+                ),
+                child: const Icon(Icons.groups, color: AppColors.violet, size: 23),
+              ),
+              const SizedBox(width: AppLayout.md),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'MULTIPLAYER',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.6,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'LOCAL TURN-BASED MATCH',
+                      style: TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        color: AppColors.cyan,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceLight,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.blue.withValues(alpha: 0.32)),
+                ),
+                child: Text(
+                  '$gamesPlayed PLAYED',
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.blue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppLayout.md),
+          const Text(
+            'Challenge your friends and compete for the highest score.',
+            style: TextStyle(fontSize: 12, color: AppColors.muted),
+          ),
+          const SizedBox(height: AppLayout.sm),
+          Row(
+            children: [
+              const Icon(Icons.emoji_events, size: 13, color: AppColors.gold),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  recentResult,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 10, color: AppColors.text),
+                ),
+              ),
+              const Icon(Icons.chevron_right, size: 18, color: AppColors.muted),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

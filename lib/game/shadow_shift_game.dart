@@ -16,6 +16,7 @@ class ShadowShiftGame extends FlameGame {
     required this.onEvent,
     required this.onFinish,
     required this.challengeId,
+    this.runId = '',
     this.onHudTick,
   });
 
@@ -24,6 +25,7 @@ class ShadowShiftGame extends FlameGame {
   final void Function(GameEvent event) onEvent;
   final void Function(RunResult result) onFinish;
   final String? challengeId;
+  final String runId;
   final VoidCallback? onHudTick;
 
   CustomPainterComponent? _painter;
@@ -62,7 +64,7 @@ class ShadowShiftGame extends FlameGame {
     if (painter is ShadowPainter) painter.tick(dt);
     if (engine.isOver && !_finished) {
       _finished = true;
-      onFinish(engine.result(challengeId: challengeId));
+      onFinish(engine.result(challengeId: challengeId, runId: runId));
     }
     _hudTimer += dt;
     if (_hudTimer >= 0.08) {

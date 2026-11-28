@@ -36,7 +36,7 @@ class AppAboutDialog extends StatelessWidget {
       title: Column(
         children: [
           Image.asset(
-            'assets/images/shadowshift_logo.png',
+            'assets/images/shadowshift_neon_logo.png',
             width: 56,
             height: 56,
             fit: BoxFit.contain,

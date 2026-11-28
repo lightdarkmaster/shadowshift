@@ -146,6 +146,7 @@ class RunResult {
     required this.objective,
     required this.seed,
     this.challengeId,
+    this.runId = '',
   });
 
   final GameMode mode;
@@ -159,6 +160,10 @@ class RunResult {
   final RunObjective objective;
   final int seed;
   final String? challengeId;
+
+  /// Unique per launched match. Empty in synthetic/test results, which are
+  /// intentionally not deduplicated.
+  final String runId;
 
   bool get objectiveMet => reason == RunEndReason.objectiveComplete;
 }

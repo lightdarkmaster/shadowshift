@@ -8,6 +8,7 @@ import 'package:shadowshift/core/theme.dart';
 import 'package:shadowshift/data/repositories/storage_repository.dart';
 import 'package:shadowshift/state/app_providers.dart';
 import 'package:shadowshift/ui/screens/splash_screen.dart';
+import 'package:shadowshift/ui/widgets/rank_celebration_overlay.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -98,8 +99,11 @@ class _ShadowShiftAppState extends ConsumerState<ShadowShiftApp>
   void _scheduleNextDayCheck() {
     _rolloverTimer?.cancel();
     final now = DateTime.now();
-    final nextMidnight = DateTime(now.year, now.month, now.day + 1)
-        .add(const Duration(milliseconds: 50));
+    final nextMidnight = DateTime(
+      now.year,
+      now.month,
+      now.day + 1,
+    ).add(const Duration(milliseconds: 50));
     final delay = nextMidnight.difference(now);
     if (delay.isNegative) return;
     _rolloverTimer = Timer(delay, () {
@@ -134,15 +138,22 @@ class _ShadowShiftAppState extends ConsumerState<ShadowShiftApp>
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SHADOW SHIFT',
+      title: AppStrings.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       home: const SplashScreen(),
       builder: (context, child) {
         final media = MediaQuery.of(context);
         return MediaQuery(
-          data: media.copyWith(textScaler: media.textScaler.clamp(maxScaleFactor: 1.3)),
-          child: child ?? const SizedBox.shrink(),
+          data: media.copyWith(
+            textScaler: media.textScaler.clamp(maxScaleFactor: 1.3),
+          ),
+          child: Stack(
+            children: [
+              child ?? const SizedBox.shrink(),
+              const RankCelebrationOverlay(),
+            ],
+          ),
         );
       },
     );

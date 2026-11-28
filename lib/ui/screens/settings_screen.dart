@@ -5,6 +5,10 @@ import 'package:shadowshift/domain/services/audio_service.dart';
 import 'package:shadowshift/state/app_providers.dart';
 import 'package:shadowshift/ui/widgets/app_scaffold.dart';
 import 'package:shadowshift/ui/widgets/design.dart';
+import 'package:shadowshift/ui/widgets/notice_dialog.dart';
+
+/// Typing this exact word is required before saved progress can be erased.
+const String resetConfirmationKeyword = 'Shadowshift';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -24,7 +28,10 @@ class SettingsScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SectionTitle('AUDIO', subtitle: 'Music and effects are generated offline'),
+                  const SectionTitle(
+                    'AUDIO',
+                    subtitle: 'Music and effects are generated offline',
+                  ),
                   const SizedBox(height: 16),
                   _SliderTile(
                     icon: Icons.music_note,
@@ -111,9 +118,14 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 20),
-            Text('SHADOW SHIFT v${AppStrings.version} · 100% OFFLINE',
-                style: const TextStyle(
-                    fontSize: 10, letterSpacing: 1.5, color: AppColors.muted)),
+            Text(
+              '${AppStrings.appName} v${AppStrings.version} · 100% OFFLINE',
+              style: const TextStyle(
+                fontSize: 10,
+                letterSpacing: 1.5,
+                color: AppColors.muted,
+              ),
+            ),
           ],
         ),
       ),
@@ -121,36 +133,127 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _confirmReset(BuildContext context, WidgetRef ref) {
-    showDialog(
+    showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('RESET PROGRESS?'),
-        content: const Text(
-          'This permanently deletes coins, unlocks, achievements, missions and high scores '
-          'from this device. This cannot be undone.',
+      barrierDismissible: false,
+      builder: (dialogContext) => _ResetProgressDialog(
+        onCancel: () => Navigator.of(dialogContext).pop(),
+        onConfirm: () {
+          ref.read(profileProvider.notifier).resetProgress();
+          Navigator.of(dialogContext).pop();
+          AudioService.instance.ui();
+          showNoticeDialog(
+            context,
+            title: 'PROGRESS RESET',
+            message: 'Progress reset. A fresh run awaits.',
+            tone: NoticeTone.info,
+            icon: Icons.restart_alt,
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Destructive action guard: the reset button stays disabled until the exact
+/// keyword is entered, so an accidental tap can never wipe the save.
+class _ResetProgressDialog extends StatefulWidget {
+  const _ResetProgressDialog({required this.onConfirm, required this.onCancel});
+
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
+
+  @override
+  State<_ResetProgressDialog> createState() => _ResetProgressDialogState();
+}
+
+class _ResetProgressDialogState extends State<_ResetProgressDialog> {
+  final TextEditingController _controller = TextEditingController();
+  bool _attempted = false;
+
+  bool get _keywordMatches => _controller.text == resetConfirmationKeyword;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    setState(() => _attempted = true);
+    if (_keywordMatches) widget.onConfirm();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final showError = _attempted && !_keywordMatches;
+    return AlertDialog(
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        side: BorderSide(color: AppColors.danger.withValues(alpha: 0.45)),
+      ),
+      title: const Text(
+        'RESET PROGRESS?',
+        style: TextStyle(
+          color: AppColors.danger,
+          fontSize: 16,
+          fontWeight: FontWeight.w900,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('CANCEL'),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'This permanently deletes coins, unlocks, achievements, missions and high scores '
+            'from this device. This cannot be undone.',
+            style: TextStyle(fontSize: 11, color: AppColors.muted),
           ),
-          TextButton(
-            onPressed: () {
-              ref.read(profileProvider.notifier).resetProgress();
-              Navigator.of(dialogContext).pop();
-              AudioService.instance.ui();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Progress reset. A fresh run awaits.'),
-                  backgroundColor: AppColors.surfaceLight,
-                ),
-              );
-            },
-            child: const Text('RESET', style: TextStyle(color: AppColors.danger)),
+          const SizedBox(height: 14),
+          const Text(
+            'TYPE "$resetConfirmationKeyword" TO CONFIRM',
+            style: TextStyle(
+              color: AppColors.text,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            autocorrect: false,
+            enableSuggestions: false,
+            textCapitalization: TextCapitalization.none,
+            style: const TextStyle(color: AppColors.text),
+            decoration: InputDecoration(
+              hintText: resetConfirmationKeyword,
+              border: const UnderlineInputBorder(),
+              errorText: showError ? 'Exact keyword required' : null,
+              errorStyle: const TextStyle(
+                color: AppColors.danger,
+                fontSize: 10,
+              ),
+            ),
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => _submit(),
           ),
         ],
       ),
+      actions: [
+        TextButton(onPressed: widget.onCancel, child: const Text('CANCEL')),
+        NeonButton(
+          label: 'DELETE PROGRESS',
+          icon: Icons.delete_forever,
+          color: AppColors.danger,
+          secondary: true,
+          compact: true,
+          enabled: _keywordMatches,
+          onPressed: _submit,
+        ),
+      ],
     );
   }
 }
@@ -182,9 +285,14 @@ class _SliderTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.1)),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.1,
+                  ),
+                ),
                 Slider(
                   value: value,
                   onChanged: onChanged,
@@ -194,8 +302,14 @@ class _SliderTile extends StatelessWidget {
               ],
             ),
           ),
-          Text('${(value * 100).round()}%',
-              style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 12)),
+          Text(
+            '${(value * 100).round()}%',
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );
@@ -229,11 +343,18 @@ class _ToggleTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.1)),
-                Text(subtitle,
-                    style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 10, color: AppColors.muted),
+                ),
               ],
             ),
           ),

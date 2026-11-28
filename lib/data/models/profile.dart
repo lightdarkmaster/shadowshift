@@ -1,5 +1,6 @@
 import 'package:shadowshift/core/utils.dart';
 import 'package:shadowshift/domain/progression/catalog.dart';
+import 'package:shadowshift/domain/progression/ranks.dart';
 
 class DailyState {
   DailyState({
@@ -76,13 +77,25 @@ class PlayerProfile {
     Set<String>? achievements,
     Set<String>? completedChallenges,
     Map<String, int>? bestScores,
+    String? playerName,
+    this.winStreak = 0,
+    this.bestWinStreak = 0,
+    Set<String>? unlockedRankRewards,
+    String? equippedTitle,
+    List<RankPromotion>? rankHistory,
+    Set<String>? processedRunIds,
     String? character,
     String? skin,
     String? effect,
     String? ability,
     String? companion,
     DailyState? daily,
-  })  : unlockedCharacters = unlockedCharacters ?? {'nyx'},
+  })  : playerName = playerName ?? RankConfig.defaultPlayerName,
+        unlockedRankRewards = unlockedRankRewards ?? <String>{},
+        equippedTitle = equippedTitle ?? RankConfig.defaultTitleId,
+        rankHistory = rankHistory ?? <RankPromotion>[],
+        processedRunIds = processedRunIds ?? <String>{},
+        unlockedCharacters = unlockedCharacters ?? {'nyx'},
         unlockedSkins = unlockedSkins ?? {'aurora'},
         unlockedEffects = unlockedEffects ?? {'classic'},
         unlockedAbilities = unlockedAbilities ?? {'none'},
@@ -115,6 +128,13 @@ class PlayerProfile {
   Set<String> achievements;
   Set<String> completedChallenges;
   Map<String, int> bestScores;
+  String playerName;
+  int winStreak;
+  int bestWinStreak;
+  Set<String> unlockedRankRewards;
+  String equippedTitle;
+  List<RankPromotion> rankHistory;
+  Set<String> processedRunIds;
   String character;
   String skin;
   String effect;
@@ -125,6 +145,14 @@ class PlayerProfile {
   int get level => levelForXp(xp);
   int get xpInLevel => xp - xpRequiredForLevel(level);
   int get xpForNextLevel => xpRequiredForLevel(level + 1) - xpRequiredForLevel(level);
+
+  /// Rank is derived from accumulated XP, so old saves gain the full ranking
+  /// system without a migration or a second source of truth.
+  RankTier get rankTier => RankConfig.forXp(xp);
+  ({RankTier current, RankTier? next, int requiredXp, int remainingXp, double progress, bool isMax})
+      get rankProgress => RankConfig.progressForXp(xp);
+  Set<String> get unlockedTitles => RankConfig.unlockedTitleIdsForXp(xp);
+  String get equippedTitleName => RankConfig.titleName(equippedTitle);
 
   static const int maxLevel = 100;
 
@@ -173,6 +201,13 @@ class PlayerProfile {
         achievements: Set<String>.from(achievements),
         completedChallenges: Set<String>.from(completedChallenges),
         bestScores: Map<String, int>.from(bestScores),
+        playerName: playerName,
+        winStreak: winStreak,
+        bestWinStreak: bestWinStreak,
+        unlockedRankRewards: Set<String>.from(unlockedRankRewards),
+        equippedTitle: equippedTitle,
+        rankHistory: RankPromotion.fromList(rankHistory),
+        processedRunIds: Set<String>.from(processedRunIds),
         character: character,
         skin: skin,
         effect: effect,
@@ -207,6 +242,13 @@ class PlayerProfile {
         'achievements': achievements.toList(),
         'completedChallenges': completedChallenges.toList(),
         'bestScores': bestScores,
+        'playerName': playerName,
+        'winStreak': winStreak,
+        'bestWinStreak': bestWinStreak,
+        'unlockedRankRewards': unlockedRankRewards.toList(),
+        'equippedTitle': equippedTitle,
+        'rankHistory': rankHistory.map((entry) => entry.toJson()).toList(),
+        'processedRunIds': processedRunIds.toList(),
         'character': character,
         'skin': skin,
         'effect': effect,
@@ -237,6 +279,23 @@ class PlayerProfile {
       achievements: _knownSet(json['achievements'], Achievements.all.map((e) => e.id), {}),
       completedChallenges: _knownSet(json['completedChallenges'], Challenges.all.map((e) => e.id), {}),
       bestScores: _intMap(json['bestScores']),
+      playerName: RankConfig.sanitizePlayerName(
+        json['playerName'] is String ? json['playerName'] as String : RankConfig.defaultPlayerName,
+      ),
+      winStreak: safeInt(json['winStreak'], 0, max: 3650),
+      bestWinStreak: safeInt(json['bestWinStreak'], 0, max: 3650),
+      unlockedRankRewards: _knownSet(
+        json['unlockedRankRewards'],
+        RankConfig.all.map((e) => e.rewardId),
+        {},
+      ),
+      equippedTitle: json['equippedTitle'] is String
+          ? json['equippedTitle'] as String
+          : RankConfig.defaultTitleId,
+      rankHistory: _objectList(json['rankHistory'], RankPromotion.fromJson)
+          .take(60)
+          .toList(growable: true),
+      processedRunIds: _stringSet(json['processedRunIds']).take(256).toSet(),
       character: json['character'] is String ? json['character'] as String : 'nyx',
       skin: json['skin'] is String ? json['skin'] as String : 'aurora',
       effect: json['effect'] is String ? json['effect'] as String : 'classic',
@@ -253,6 +312,16 @@ class PlayerProfile {
     if (!profile.unlockedEffects.contains(profile.effect)) profile.effect = 'classic';
     if (!profile.unlockedAbilities.contains(profile.ability)) profile.ability = 'none';
     if (!profile.unlockedCompanions.contains(profile.companion)) profile.companion = 'none';
+
+    // Old saves contain XP but no rank fields. Derive all rank cosmetics from
+    // that XP so nothing is lost and no migration step can fail.
+    profile.unlockedRankRewards.addAll(RankConfig.unlockedRewardIdsForXp(profile.xp));
+    profile.unlockedSkins.addAll(RankConfig.unlockedSkinIdsForXp(profile.xp));
+    profile.unlockedEffects.addAll(RankConfig.unlockedEffectIdsForXp(profile.xp));
+    if (!profile.unlockedTitles.contains(profile.equippedTitle)) {
+      profile.equippedTitle = RankConfig.defaultTitleId;
+    }
+    if (profile.playerName.isEmpty) profile.playerName = RankConfig.defaultPlayerName;
     return profile;
   }
 
@@ -266,5 +335,15 @@ class PlayerProfile {
   static Map<String, int> _intMap(Object? value) {
     if (value is! Map) return <String, int>{};
     return value.map((key, entry) => MapEntry(key.toString(), safeInt(entry, 0)));
+  }
+
+  static Set<String> _stringSet(Object? value) {
+    if (value is! List) return <String>{};
+    return value.whereType<String>().where((item) => item.isNotEmpty).toSet();
+  }
+
+  static List<T> _objectList<T>(Object? value, T Function(Object?) factory) {
+    if (value is! List) return <T>[];
+    return value.map(factory).toList(growable: true);
   }
 }

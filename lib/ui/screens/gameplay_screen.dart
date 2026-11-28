@@ -9,8 +9,10 @@ import 'package:shadowshift/domain/game/engine.dart';
 import 'package:shadowshift/domain/game/entities.dart';
 import 'package:shadowshift/domain/game/enums.dart';
 import 'package:shadowshift/domain/progression/catalog.dart';
+import 'package:shadowshift/domain/progression/ranks.dart';
 import 'package:shadowshift/domain/services/audio_service.dart';
 import 'package:shadowshift/domain/services/launch_service.dart';
+import 'package:shadowshift/domain/services/progression_service.dart';
 import 'package:shadowshift/game/shadow_shift_game.dart';
 import 'package:shadowshift/game/shadow_painter.dart';
 import 'package:shadowshift/state/app_providers.dart';
@@ -39,10 +41,23 @@ class _GameplayScreenState extends ConsumerState<GameplayScreen>
   Timer? _countdownTimer;
   int _countdown = 3;
   bool _counting = true;
+  /// True when the active (or background-expired) countdown belongs to a
+  /// resume instead of the initial pre-run countdown.
+  bool _resumeCountdown = false;
   bool _paused = false;
   bool _finished = false;
   bool _created = false;
   bool _backgroundSuspended = false;
+
+  // Snapshot of the save at run start. Live HUD rewards are added on top of
+  // these values so the counters rise with the run without touching storage
+  // until settlement commits everything atomically.
+  late int _startCoins;
+  late int _startXp;
+  late int _startWinStreak;
+  late int _startBestScore;
+  late bool _challengeAlreadyPaid;
+  late ({int coins, int xp}) _live;
 
   @override
   void initState() {
@@ -57,6 +72,13 @@ class _GameplayScreenState extends ConsumerState<GameplayScreen>
     _created = true;
     final settings = ref.read(settingsProvider);
     final profile = ref.read(profileProvider);
+    _startCoins = profile.coins;
+    _startXp = profile.xp;
+    _startWinStreak = profile.winStreak;
+    _startBestScore = profile.bestScores[widget.launch.mode.name] ?? 0;
+    final challengeId = widget.launch.challengeId;
+    _challengeAlreadyPaid = challengeId != null &&
+        profile.completedChallenges.contains(challengeId);
     final size = MediaQuery.of(context).size;
     // A zero/invalid viewport must never poison the simulation with NaN.
     final width = size.width.isFinite && size.width > 0 ? size.width : 1.0;
@@ -93,18 +115,33 @@ class _GameplayScreenState extends ConsumerState<GameplayScreen>
       ),
     );
     engine.paused = true;
+    _live = _computeLiveRewards();
     game = ShadowShiftGame(
       engine: engine,
       options: options,
       challengeId: widget.launch.challengeId,
+      runId: widget.launch.runId,
       onEvent: _onEvent,
       onFinish: _finishRun,
       onHudTick: _publishHud,
     );
-    _startCountdown();
+    _startCountdown(notify: false);
   }
 
-  void _startCountdown() {
+  /// Shows a fresh 3-second count while the simulation stays frozen. Passing
+  /// [fromPause] reuses it for RESUME so players never snap straight back into
+  /// live danger.
+  void _startCountdown({bool fromPause = false, bool notify = true}) {
+    _countdownTimer?.cancel();
+    _countdown = 3;
+    _counting = true;
+    _resumeCountdown = fromPause;
+    if (fromPause) _paused = false;
+    engine.paused = true;
+    if (notify && mounted) setState(() {});
+    if (fromPause && !_backgroundSuspended) {
+      AudioService.instance.setMusicActive(true);
+    }
     _countdownTimer = Timer.periodic(const Duration(milliseconds: 680), (timer) {
       if (!mounted) {
         timer.cancel();
@@ -113,9 +150,16 @@ class _GameplayScreenState extends ConsumerState<GameplayScreen>
       setState(() => _countdown--);
       if (_countdown < 0) {
         timer.cancel();
-        // Do not resume while the app is backgrounded; the lifecycle handler
-        // resumes the engine when the player returns.
-        if (!_backgroundSuspended) engine.paused = false;
+        if (!_backgroundSuspended) {
+          engine.paused = false;
+          game.resumeEngine();
+          _resumeCountdown = false;
+        } else if (!_resumeCountdown) {
+          // Initial countdown expired in the background; the lifecycle
+          // handler can resume directly. A resume countdown waits for the
+          // player to return and then starts over.
+          _resumeCountdown = false;
+        }
         setState(() => _counting = false);
       }
     });
@@ -133,10 +177,54 @@ class _GameplayScreenState extends ConsumerState<GameplayScreen>
     }
   }
 
+  /// Projects the rewards the current run has already earned. This is a read
+  /// only preview: storage is still written once, by `_finishRun`.
+  ({int coins, int xp}) _computeLiveRewards() {
+    final objectiveMet = widget.launch.objective.isMet(
+      engine.elapsed,
+      engine.orbs,
+      engine.combo,
+      engine.score,
+      engine.switches,
+    );
+    final isNewBest = engine.score > _startBestScore;
+    final challengeId = widget.launch.challengeId;
+    final challenge = challengeId == null ? null : Challenges.byId(challengeId);
+    final challengePaysThisRun =
+        objectiveMet && challenge != null && !_challengeAlreadyPaid;
+    final result = RunResult(
+      mode: widget.launch.mode,
+      score: engine.score,
+      seconds: engine.elapsed,
+      orbs: engine.orbs,
+      maxCombo: engine.maxCombo,
+      switches: engine.switches,
+      dodges: engine.dodges,
+      reason: objectiveMet
+          ? RunEndReason.objectiveComplete
+          : RunEndReason.collision,
+      objective: widget.launch.objective,
+      seed: widget.launch.seed,
+      challengeId: challengeId,
+    );
+    final win = objectiveMet || isNewBest;
+    final preview = ProgressionService.previewRunRewards(
+      result,
+      isNewBest: isNewBest,
+      winStreak: _startWinStreak + (win ? 1 : 0),
+      // A first challenge clear pays its own XP instead of the objective XP.
+      objectiveAlreadyRewarded: challengePaysThisRun,
+      challengeRewardCoins: challengePaysThisRun ? challenge.rewardCoins : 0,
+      challengeRewardXp: challengePaysThisRun ? challenge.rewardXp : 0,
+    );
+    return (coins: preview.coins, xp: preview.xp);
+  }
+
   /// The game ticks the HUD at 12.5Hz; only rebuild when something visible
   /// actually changed (score usually does, focus/effects often don't).
   void _publishHud() {
-    final signature = _HudSignature.compute(engine, widget.launch);
+    _live = _computeLiveRewards();
+    final signature = _HudSignature.compute(engine, widget.launch, _live);
     if (signature == _hudSignature) return;
     _hudSignature = signature;
     _hudTick.value++;
@@ -159,14 +247,16 @@ class _GameplayScreenState extends ConsumerState<GameplayScreen>
     if (_finished || _counting) return;
     final next = force ?? !_paused;
     if (next == _paused) return;
-    setState(() => _paused = next);
-    engine.paused = next;
-    AudioService.instance.setMusicActive(!next);
     if (next) {
+      setState(() => _paused = true);
+      engine.paused = true;
+      AudioService.instance.setMusicActive(false);
       game.pauseEngine();
-    } else {
-      game.resumeEngine();
+      return;
     }
+    // Resuming waits behind a fresh countdown; the engine and Flame loop stay
+    // paused until it reaches GO!.
+    _startCountdown(fromPause: true);
   }
 
   void _restart() {
@@ -201,7 +291,14 @@ class _GameplayScreenState extends ConsumerState<GameplayScreen>
     if (state != AppLifecycleState.resumed || _finished) return;
     _backgroundSuspended = false;
     AudioService.instance.setMusicActive(!_paused);
-    // A countdown that expired in the background left the engine paused.
+    // A resume countdown that expired off-screen starts again so the player
+    // actually sees the 3 seconds before danger returns.
+    if (_resumeCountdown && !_counting && !_paused) {
+      _startCountdown(fromPause: true);
+      return;
+    }
+    // An initial countdown that expired in the background left the engine
+    // paused; resume it directly since the player already waited off-screen.
     if (!_counting && !_paused && engine.paused) {
       engine.paused = false;
       game.resumeEngine();
@@ -221,6 +318,8 @@ class _GameplayScreenState extends ConsumerState<GameplayScreen>
   @override
   Widget build(BuildContext context) {
     final showHints = ref.watch(settingsProvider.select((s) => s.showHints));
+    final reducedMotion =
+        ref.watch(settingsProvider.select((s) => s.reducedMotion));
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
@@ -246,6 +345,11 @@ class _GameplayScreenState extends ConsumerState<GameplayScreen>
                 builder: (context, _, _) => _Hud(
                   engine: engine,
                   launch: widget.launch,
+                  xpTotal: _startXp + _live.xp,
+                  xpGain: _live.xp,
+                  goldTotal: _startCoins + _live.coins,
+                  goldGain: _live.coins,
+                  animate: !reducedMotion,
                   onPause: () => _togglePause(),
                 ),
               ),
@@ -281,8 +385,16 @@ class _GameplayScreenState extends ConsumerState<GameplayScreen>
 
 /// Compact representation of everything the two HUD widgets display.
 class _HudSignature {
-  static String compute(GameEngine engine, GameLaunch launch) {
+  static String compute(
+    GameEngine engine,
+    GameLaunch launch,
+    ({int coins, int xp}) live,
+  ) {
     final buffer = StringBuffer()
+      ..write(live.coins)
+      ..write(':')
+      ..write(live.xp)
+      ..write(':')
       ..write(formatScore(engine.score))
       ..write(':')
       ..write(engine.multiplier)
@@ -326,11 +438,21 @@ class _Hud extends StatelessWidget {
   const _Hud({
     required this.engine,
     required this.launch,
+    required this.xpTotal,
+    required this.xpGain,
+    required this.goldTotal,
+    required this.goldGain,
+    required this.animate,
     required this.onPause,
   });
 
   final GameEngine engine;
   final GameLaunch launch;
+  final int xpTotal;
+  final int xpGain;
+  final int goldTotal;
+  final int goldGain;
+  final bool animate;
   final VoidCallback onPause;
 
   static const _scoreStyle = TextStyle(
@@ -405,6 +527,31 @@ class _Hud extends StatelessWidget {
                       style: _objectiveStyle,
                     ),
                   ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _RewardChip(
+                        icon: Icons.stars,
+                        label: 'XP',
+                        total: xpTotal,
+                        gain: xpGain,
+                        color: AppColors.violet,
+                        animate: animate,
+                      ),
+                      _RewardChip(
+                        icon: Icons.monetization_on,
+                        label: 'GOLD',
+                        total: goldTotal,
+                        gain: goldGain,
+                        color: AppColors.gold,
+                        animate: animate,
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -415,6 +562,152 @@ class _Hud extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Compact XP/gold readout for the live run. The total is the saved value plus
+/// the rewards earned so far; the small `+N` shows what this run has added.
+class _RewardChip extends StatelessWidget {
+  const _RewardChip({
+    required this.icon,
+    required this.label,
+    required this.total,
+    required this.gain,
+    required this.color,
+    required this.animate,
+  });
+
+  final IconData icon;
+  final String label;
+  final int total;
+  final int gain;
+  final Color color;
+  final bool animate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 5),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 7,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              Row(
+                children: [
+                  _AnimatedCount(
+                    value: total,
+                    formatter: RankConfig.xpLabel,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                    animate: animate,
+                  ),
+                  if (gain > 0) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      '+${RankConfig.xpLabel(gain)}',
+                      style: TextStyle(
+                        color: color.withValues(alpha: 0.85),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Smoothly counts toward the latest value so collectible rewards feel like
+/// they land instead of snapping between numbers.
+class _AnimatedCount extends StatefulWidget {
+  const _AnimatedCount({
+    required this.value,
+    required this.formatter,
+    required this.style,
+    required this.animate,
+  });
+
+  final int value;
+  final String Function(int value) formatter;
+  final TextStyle style;
+  final bool animate;
+
+  @override
+  State<_AnimatedCount> createState() => _AnimatedCountState();
+}
+
+class _AnimatedCountState extends State<_AnimatedCount>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late int _start;
+  late int _displayed;
+
+  @override
+  void initState() {
+    super.initState();
+    _start = _displayed = widget.value;
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    );
+    if (!widget.animate) _controller.value = 1;
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedCount oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value == oldWidget.value) return;
+    if (!widget.animate) {
+      _start = _displayed = widget.value;
+      return;
+    }
+    _start = _displayed;
+    _controller.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final t = Curves.easeOut.transform(_controller.value);
+        final current = (_start + (widget.value - _start) * t).round();
+        _displayed = current;
+        return Text(widget.formatter(current), style: widget.style);
+      },
     );
   }
 }

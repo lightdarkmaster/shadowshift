@@ -6,6 +6,7 @@ import 'package:shadowshift/domain/services/audio_service.dart';
 import 'package:shadowshift/state/app_providers.dart';
 import 'package:shadowshift/ui/widgets/app_scaffold.dart';
 import 'package:shadowshift/ui/widgets/design.dart';
+import 'package:shadowshift/ui/widgets/notice_dialog.dart';
 
 class CharacterSelectionScreen extends ConsumerWidget {
   const CharacterSelectionScreen({super.key});
@@ -133,7 +134,7 @@ class CharacterSelectionScreen extends ConsumerWidget {
                                 .purchaseAndSelect(character.id, character.price, 'character')) {
                               AudioService.instance.achievement();
                             } else {
-                              _notEnough(context);
+                              _notEnough(context, character);
                             }
                           },
                         ),
@@ -150,11 +151,14 @@ class CharacterSelectionScreen extends ConsumerWidget {
   }
 }
 
-void _notEnough(BuildContext context) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('Not enough energy coins. Play a run to earn more.'),
-      backgroundColor: AppColors.surfaceLight,
-    ),
+void _notEnough(BuildContext context, ShopItem character) {
+  showNoticeDialog(
+    context,
+    title: 'INSUFFICIENT COINS',
+    message: 'You need ${character.price} energy coins for ${character.name}. '
+        'Play a run to earn more.',
+    tone: NoticeTone.error,
+    icon: Icons.sentiment_dissatisfied,
+    badgeIcon: Icons.monetization_on,
   );
 }

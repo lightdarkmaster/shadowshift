@@ -86,15 +86,19 @@ void main() {
   group('collision and rewards', () {
     test('matching-dimension obstacle ends the run', () {
       final engine = makeEngine();
+      // The runner starts with one second of spawn protection, so place the
+      // obstacle far enough right that it arrives after that grace expires.
       engine.obstacles.add(Obstacle(
         id: 1,
-        x: GameConfig.playerX,
+        x: GameConfig.playerX + 360,
         y: engine.playerY - 100,
         dimension: engine.dimension,
         kind: ObstacleKind.standard,
         height: 200,
       ));
-      engine.update(1 / 60);
+      for (var frame = 0; frame < 120 && !engine.isOver; frame++) {
+        engine.update(1 / 60);
+      }
       expect(engine.isOver, isTrue);
       expect(engine.endReason, RunEndReason.collision);
     });
