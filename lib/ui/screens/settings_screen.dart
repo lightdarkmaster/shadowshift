@@ -97,12 +97,15 @@ class SettingsScreen extends ConsumerWidget {
                     style: TextStyle(fontSize: 11, color: AppColors.muted),
                   ),
                   const SizedBox(height: 14),
-                  NeonButton(
-                    label: 'RESET ALL PROGRESS',
-                    icon: Icons.delete_forever,
-                    secondary: true,
-                    color: AppColors.danger,
-                    onPressed: () => _confirmReset(context, ref),
+                  SizedBox(
+                    width: double.infinity,
+                    child: NeonButton(
+                      label: 'RESET ALL PROGRESS',
+                      icon: Icons.delete_forever,
+                      secondary: true,
+                      color: AppColors.danger,
+                      onPressed: () => _confirmReset(context, ref),
+                    ),
                   ),
                 ],
               ),

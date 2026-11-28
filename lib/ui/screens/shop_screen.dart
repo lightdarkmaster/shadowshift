@@ -6,6 +6,7 @@ import 'package:shadowshift/domain/services/audio_service.dart';
 import 'package:shadowshift/state/app_providers.dart';
 import 'package:shadowshift/ui/widgets/app_scaffold.dart';
 import 'package:shadowshift/ui/widgets/design.dart';
+import 'package:shadowshift/ui/widgets/shop_item_dialog.dart';
 
 class ShopScreen extends ConsumerWidget {
   const ShopScreen({super.key});
@@ -24,6 +25,17 @@ class ShopScreen extends ConsumerWidget {
               indicatorColor: AppColors.cyan,
               labelColor: AppColors.cyan,
               unselectedLabelColor: AppColors.muted,
+              labelPadding: EdgeInsets.symmetric(horizontal: 6),
+              labelStyle: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.4,
+              ),
+              unselectedLabelStyle: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.4,
+              ),
               tabs: [
                 Tab(text: 'SKINS'),
                 Tab(text: 'EFFECTS'),
@@ -95,31 +107,50 @@ class _ItemList extends ConsumerWidget {
               borderColor: selected ? item.color.withValues(alpha: 0.65) : AppColors.surfaceLight,
               child: Row(
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: item.color.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: item.color.withValues(alpha: 0.45)),
-                    ),
-                    child: Icon(item.icon, color: item.color),
-                  ),
-                  const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(item.name,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.4,
-                              color: item.color,
-                            )),
-                        const SizedBox(height: 4),
-                        Text(item.description,
-                            style: const TextStyle(fontSize: 11, color: AppColors.muted)),
-                      ],
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(AppRadius.card),
+                      onTap: () => _showDetails(context, ref, item, isOwned, selected),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: item.color.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: item.color.withValues(alpha: 0.45)),
+                            ),
+                            child: Icon(item.icon, color: item.color),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(item.name,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1.4,
+                                      color: item.color,
+                                    )),
+                                const SizedBox(height: 4),
+                                Text(item.description,
+                                    style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                                const SizedBox(height: 3),
+                                Text(
+                                  'TAP FOR EXAMPLE',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    letterSpacing: 0.8,
+                                    color: item.color.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -131,34 +162,7 @@ class _ItemList extends ConsumerWidget {
                       secondary: selected,
                       color: item.color,
                       selected: selected,
-                      onPressed: () {
-                        final profile = ref.read(profileProvider);
-                        final notifier = ref.read(profileProvider.notifier);
-                        if (isOwned) {
-                          switch (category) {
-                            case 'skin':
-                              notifier.selectSkin(item.id);
-                            case 'effect':
-                              notifier.selectEffect(item.id);
-                            case 'ability':
-                              notifier.selectAbility(item.id);
-                            case 'companion':
-                              notifier.selectCompanion(item.id);
-                          }
-                          AudioService.instance.ui();
-                          return;
-                        }
-                        if (notifier.purchaseAndSelect(item.id, item.price, category)) {
-                          AudioService.instance.achievement();
-                        } else if (profile.coins < item.price) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Not enough coins. Play a run to earn more.'),
-                              backgroundColor: AppColors.surfaceLight,
-                            ),
-                          );
-                        }
-                      },
+                      onPressed: () => _applyItem(context, ref, item, isOwned),
                     ),
                   ),
                 ],
@@ -168,5 +172,57 @@ class _ItemList extends ConsumerWidget {
         }).toList(),
       ),
     );
+  }
+
+  void _showDetails(
+    BuildContext context,
+    WidgetRef ref,
+    ShopItem item,
+    bool isOwned,
+    bool selected,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => ShopItemDetailDialog(
+        item: item,
+        category: category,
+        isOwned: isOwned,
+        selected: selected,
+        onUse: () => _applyItem(context, ref, item, isOwned),
+      ),
+    );
+  }
+
+  void _applyItem(BuildContext context, WidgetRef ref, ShopItem item, bool isOwned) {
+    final notifier = ref.read(profileProvider.notifier);
+    if (isOwned) {
+      switch (category) {
+        case 'skin':
+          notifier.selectSkin(item.id);
+        case 'effect':
+          notifier.selectEffect(item.id);
+        case 'ability':
+          notifier.selectAbility(item.id);
+        case 'companion':
+          notifier.selectCompanion(item.id);
+      }
+      AudioService.instance.ui();
+      return;
+    }
+
+    if (notifier.purchaseAndSelect(item.id, item.price, category)) {
+      AudioService.instance.achievement();
+      return;
+    }
+
+    final profile = ref.read(profileProvider);
+    if (profile.coins < item.price) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Not enough coins. Play a run to earn more.'),
+          backgroundColor: AppColors.surfaceLight,
+        ),
+      );
+    }
   }
 }

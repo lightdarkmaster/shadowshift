@@ -102,7 +102,7 @@ class _ChallengeCard extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.bolt, size: 14, color: AppColors.gold),
+          const Icon(Icons.paid, size: 14, color: AppColors.gold),
           Text(
             '${challenge.rewardCoins}',
             style: const TextStyle(color: AppColors.gold, fontSize: 12),

@@ -121,7 +121,7 @@ class MainMenu extends ConsumerWidget {
                                   children: [
                                     Expanded(
                                       child: StatChip(
-                                        icon: Icons.bolt,
+                                        icon: Icons.paid,
                                         value: formatScore(profile.coins),
                                         color: AppColors.gold,
                                         fill: true,

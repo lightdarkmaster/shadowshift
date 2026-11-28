@@ -42,7 +42,7 @@ class GameOverScreen extends ConsumerWidget {
       showBack: false,
       showCoins: false,
       actions: [
-        StatChip(icon: Icons.bolt, value: '${summary.coins}', color: AppColors.gold),
+        StatChip(icon: Icons.paid, value: '${summary.coins}', color: AppColors.gold),
       ],
       body: SingleChildScrollView(
         padding: AppLayout.pagePadding,
@@ -122,7 +122,7 @@ class GameOverScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(child: _RewardTile(icon: Icons.bolt, label: '+${summary.coins}', color: AppColors.gold)),
+                      Expanded(child: _RewardTile(icon: Icons.paid, label: '+${summary.coins}', color: AppColors.gold)),
                       const SizedBox(width: AppLayout.md),
                       Expanded(child: _RewardTile(icon: Icons.stars, label: '+${summary.xp} XP', color: AppColors.violet)),
                       if (summary.levelAfter > summary.levelBefore) ...[

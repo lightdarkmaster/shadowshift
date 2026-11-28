@@ -115,7 +115,7 @@ class AppScaffold extends ConsumerWidget {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.bolt,
+                                      const Icon(Icons.paid,
                                           size: 15, color: AppColors.gold),
                                       const SizedBox(width: 5),
                                       Text(

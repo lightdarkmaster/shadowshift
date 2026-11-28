@@ -126,25 +126,27 @@ class NeonButton extends StatelessWidget {
     final interactive = enabled || selected;
     // Scale the whole label down on narrow screens instead of letting a long
     // uppercase label with letter spacing overflow the button's padding.
-    final child = FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (icon != null) Icon(icon, size: compact ? 18 : 21, color: accent),
-          if (icon != null) const SizedBox(width: 10),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: secondary ? AppColors.text : const Color(0xFF04121A),
-              fontSize: compact ? 13 : 15,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
+    final child = Center(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null) Icon(icon, size: compact ? 18 : 21, color: accent),
+            if (icon != null) const SizedBox(width: 10),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: secondary ? AppColors.text : const Color(0xFF04121A),
+                fontSize: compact ? 13 : 15,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
     return AnimatedScale(

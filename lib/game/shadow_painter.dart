@@ -44,12 +44,63 @@ class ShadowPainter extends CustomPainter {
   ShadowPainter(this.engine, this.options) {
     _characterGlow = options.characterColor.withValues(alpha: 0.22);
     _characterAccent = options.characterColor.withValues(alpha: 0.9);
-    _echoPaint.color = options.characterColor.withValues(alpha: 0.2);
     // Catalogue colours are the single source of truth, so new shop items
     // change the runner without needing another switch in the painter.
     _skinColor = Catalog.find(Catalog.skins, options.skinId).color;
     _effectColor = Catalog.find(Catalog.effects, options.effectId).color;
     _companionColor = Catalog.find(Catalog.companions, options.companionId).color;
+
+    // The runner's shop icon becomes the actual hero sprite in the world, so
+    // buying a runner visibly changes what the player sees during a run.
+    final character = Catalog.find(Catalog.characters, options.characterId);
+    _characterIcon = character.icon;
+    // NYX keeps the original forward arrow so the starter runner still reads
+    // as the classic hero. Every bought runner uses its own shop icon.
+    _usesArrowHero = options.characterId == 'nyx';
+    // The rocket points up-right; tilt it so it travels with the runner.
+    _iconRotation = options.characterId == 'viper' ? math.pi / 4 : 0;
+    _heroIconFillLight = _makeIconPainter(AppColors.cyan.withValues(alpha: 0.95));
+    _heroIconFillShadow = _makeIconPainter(AppColors.violet.withValues(alpha: 0.95));
+    _heroIconStroke = _makeIconPainter(Colors.white.withValues(alpha: 0.85), stroke: true);
+    _heroIconEcho = _makeIconPainter(character.color.withValues(alpha: 0.24));
+    _heroIconGlitchA = _makeIconPainter(AppColors.pink.withValues(alpha: 0.5));
+    _heroIconGlitchB = _makeIconPainter(AppColors.cyan.withValues(alpha: 0.5));
+  }
+
+  TextPainter _makeIconPainter(Color color, {bool stroke = false}) {
+    final fontSize = GameConfig.playerRadius * 1.5;
+    return TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(_characterIcon.codePoint),
+        style: TextStyle(
+          fontFamily: _characterIcon.fontFamily,
+          package: _characterIcon.fontPackage,
+          fontSize: fontSize,
+          height: 1,
+          color: stroke ? null : color,
+          foreground: stroke
+              ? (Paint()
+                  ..style = PaintingStyle.stroke
+                  ..strokeWidth = 1.8
+                  ..color = color)
+              : null,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+  }
+
+  void _drawHeroIcon(
+    Canvas canvas,
+    Offset center,
+    TextPainter painter, {
+    double rotation = 0,
+  }) {
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    if (rotation != 0) canvas.rotate(rotation);
+    painter.paint(canvas, Offset(-painter.width / 2, -painter.height / 2));
+    canvas.restore();
   }
 
   final GameEngine engine;
@@ -59,6 +110,15 @@ class ShadowPainter extends CustomPainter {
   late final Color _skinColor;
   late final Color _effectColor;
   late final Color _companionColor;
+  late final IconData _characterIcon;
+  late final bool _usesArrowHero;
+  late final double _iconRotation;
+  late final TextPainter _heroIconFillLight;
+  late final TextPainter _heroIconFillShadow;
+  late final TextPainter _heroIconStroke;
+  late final TextPainter _heroIconEcho;
+  late final TextPainter _heroIconGlitchA;
+  late final TextPainter _heroIconGlitchB;
   int _lastSwitches = 0;
   double _switchPulse = 0;
   double _shake = 0;
@@ -211,7 +271,6 @@ class ShadowPainter extends CustomPainter {
       for (var i = 1; i <= 3; i++) AppColors.violet.withValues(alpha: 0.25 / i),
     ],
   };
-  static final Color _playerStrokeColor = Colors.white.withValues(alpha: 0.85);
   static final Color _shieldColor = AppColors.cyan.withValues(alpha: 0.85);
   static final Color _focusColor = AppColors.gold.withValues(alpha: 0.7);
 
@@ -225,13 +284,6 @@ class ShadowPainter extends CustomPainter {
     ..lineTo(0, 21)
     ..lineTo(-21, 0)
     ..close();
-  static final Path _playerBody = Path()
-    ..moveTo(GameConfig.playerRadius * 1.35, 0)
-    ..lineTo(-GameConfig.playerRadius * 0.85, -GameConfig.playerRadius * 1.15)
-    ..lineTo(-GameConfig.playerRadius * 0.45, 0)
-    ..lineTo(-GameConfig.playerRadius * 0.85, GameConfig.playerRadius * 1.15)
-    ..close();
-
   final Paint _backgroundPaint = Paint();
   final Paint _splitPaint = Paint();
   Shader? _leftSplitShader;
@@ -269,13 +321,21 @@ class ShadowPainter extends CustomPainter {
 
   final Paint _playerGlowPaint = Paint()..maskFilter = _blur18;
   final Paint _playerTrailPaint = Paint();
-  final Paint _playerBodyPaint = Paint();
-  final Paint _playerStrokePaint = Paint()
+  static final Color _playerStrokeColor = Colors.white.withValues(alpha: 0.85);
+  static final Path _arrowBody = Path()
+    ..moveTo(GameConfig.playerRadius * 1.35, 0)
+    ..lineTo(-GameConfig.playerRadius * 0.85, -GameConfig.playerRadius * 1.15)
+    ..lineTo(-GameConfig.playerRadius * 0.45, 0)
+    ..lineTo(-GameConfig.playerRadius * 0.85, GameConfig.playerRadius * 1.15)
+    ..close();
+
+  final Paint _heroHaloPaint = Paint();
+  final Paint _arrowPaint = Paint();
+  final Paint _arrowStrokePaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 2;
   final Paint _skinPaint = Paint();
   final Paint _characterPaint = Paint()..style = PaintingStyle.stroke;
-  final Paint _echoPaint = Paint();
   final Paint _shieldPaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 2.5;
@@ -604,27 +664,89 @@ class ShadowPainter extends CustomPainter {
         _playerTrailPaint,
       );
     }
-    // ECHO leaves faint after-images of its actual body shape behind.
+    // ECHO leaves faint after-images of its actual icon behind.
     if (options.characterId == 'echo' && !options.reducedMotion) {
       for (var i = 1; i <= 2; i++) {
-        canvas.save();
-        canvas.translate(x - i * 22, y + (i.isOdd ? -8 : 8));
-        canvas.drawPath(_playerBody, _echoPaint);
-        canvas.restore();
+        _drawHeroIcon(
+          canvas,
+          Offset(x - i * 22, y + (i.isOdd ? -8 : 8)),
+          _heroIconEcho,
+          rotation: _iconRotation,
+        );
       }
     }
 
-    _playerBodyPaint.color = _playerBodyColors[dimension]!;
-    _playerStrokePaint.color = _playerStrokeColor;
-    canvas.save();
-    canvas.translate(x, y);
-    canvas.drawPath(_playerBody, _playerBodyPaint);
-    canvas.drawPath(_playerBody, _playerStrokePaint);
-    canvas.restore();
-    _skinPaint.color = options.skinId == 'spectrum' && !options.reducedMotion
-        ? _rainbow(engine.elapsed * 0.4)
-        : _skinColor;
-    canvas.drawCircle(Offset(x + 2, y), radius * 0.26, _skinPaint);
+    // Each runner's ability gets its own aura behind the icon.
+    _characterPaint.color = _characterAccent;
+    _characterPaint.strokeWidth = 2;
+    switch (options.characterId) {
+      case 'flux':
+        for (var i = 0; i < 2; i++) {
+          final angle = engine.elapsed * 1.4 + i * math.pi;
+          canvas.drawCircle(
+            Offset(
+              x + math.cos(angle) * radius * 1.15,
+              y + math.sin(angle) * radius * 1.15,
+            ),
+            radius * 0.13,
+            _characterPaint,
+          );
+        }
+      case 'echo':
+        _characterPaint.color = _characterAccent.withValues(alpha: 0.4);
+        canvas.drawCircle(Offset(x, y), radius * 1.22, _characterPaint);
+        _characterPaint.color = _characterAccent;
+      case 'spectre':
+        canvas.drawCircle(Offset(x, y), radius * 1.32, _characterPaint);
+      case 'zenith':
+        canvas.drawArc(
+          Rect.fromCircle(center: Offset(x, y), radius: radius * 1.35),
+          -2.4,
+          1.5,
+          false,
+          _characterPaint,
+        );
+        canvas.drawArc(
+          Rect.fromCircle(center: Offset(x, y), radius: radius * 1.35),
+          0.9,
+          1.5,
+          false,
+          _characterPaint,
+        );
+      case 'viper':
+        for (var i = 0; i < 3; i++) {
+          canvas.drawLine(
+            Offset(x - radius * 1.9 - i * 7, y - 9 + i * 9),
+            Offset(x - radius * 0.9, y - 5 + i * 5),
+            _characterPaint,
+          );
+        }
+      case 'onyx':
+        canvas.drawCircle(Offset(x, y), radius * 1.05, _characterPaint);
+        _characterPaint.color = _characterAccent.withValues(alpha: 0.45);
+        canvas.drawCircle(Offset(x, y), radius * 1.35, _characterPaint);
+        _characterPaint.color = _characterAccent;
+      case 'lumen':
+        for (var i = 0; i < 4; i++) {
+          final angle = i * math.pi / 2 + engine.elapsed * 0.6;
+          canvas.drawLine(
+            Offset(
+              x + math.cos(angle) * radius * 1.05,
+              y + math.sin(angle) * radius * 1.05,
+            ),
+            Offset(
+              x + math.cos(angle) * radius * 1.38,
+              y + math.sin(angle) * radius * 1.38,
+            ),
+            _characterPaint,
+          );
+        }
+    }
+
+    // The halo and the hero fill both follow the active dimension, so a tap
+    // that shifts LIGHT/SHADOW is instantly readable from the player colour.
+    _heroHaloPaint.color = _playerBodyColors[dimension]!.withValues(alpha: 0.42);
+    canvas.drawCircle(Offset(x, y), radius * 0.95, _heroHaloPaint);
 
     if (effect == 'pulse' && !options.reducedMotion) {
       for (var ring = 0; ring < 3; ring++) {
@@ -638,85 +760,51 @@ class ShadowPainter extends CustomPainter {
         );
       }
     }
-    if (effect == 'glitch' && !options.reducedMotion) {
-      _effectRingPaint.color = AppColors.cyan.withValues(alpha: 0.4);
-      canvas.save();
-      canvas.translate(x - 4, y);
-      canvas.drawPath(_playerBody, _effectRingPaint);
-      canvas.restore();
-      _effectRingPaint.color = AppColors.pink.withValues(alpha: 0.4);
-      canvas.save();
-      canvas.translate(x + 4, y);
-      canvas.drawPath(_playerBody, _effectRingPaint);
-      canvas.restore();
+    if (effect == 'glitch' && !options.reducedMotion && !_usesArrowHero) {
+      final wobble = math.sin(engine.elapsed * 22) * 2;
+      _drawHeroIcon(
+        canvas,
+        Offset(x - 4 + wobble, y),
+        _heroIconGlitchA,
+        rotation: _iconRotation,
+      );
+      _drawHeroIcon(
+        canvas,
+        Offset(x + 4 - wobble, y),
+        _heroIconGlitchB,
+        rotation: _iconRotation,
+      );
     }
 
-    _characterPaint.color = _characterAccent;
-    _characterPaint.strokeWidth = 2;
-    switch (options.characterId) {
-      case 'flux':
-        canvas.drawCircle(
-          Offset(x + 2, y - radius * 0.34),
-          radius * 0.13,
-          _characterPaint,
-        );
-        canvas.drawCircle(
-          Offset(x + 2, y + radius * 0.34),
-          radius * 0.13,
-          _characterPaint,
-        );
-        break;
-      case 'echo':
-        canvas.drawCircle(Offset(x + 2, y), radius * 0.42, _characterPaint);
-        break;
-      case 'spectre':
-        canvas.drawCircle(Offset(x, y), radius * 1.32, _characterPaint);
-        break;
-      case 'zenith':
-        canvas.drawLine(
-          Offset(x + radius * 0.35, y - radius * 0.35),
-          Offset(x + radius * 0.9, y),
-          _characterPaint,
-        );
-        canvas.drawLine(
-          Offset(x + radius * 0.35, y + radius * 0.35),
-          Offset(x + radius * 0.9, y),
-          _characterPaint,
-        );
-        break;
-      case 'viper':
-        canvas.drawLine(
-          Offset(x - 8, y - radius * 0.4),
-          Offset(x + 6, y),
-          _characterPaint,
-        );
-        canvas.drawLine(
-          Offset(x + 6, y),
-          Offset(x - 8, y + radius * 0.4),
-          _characterPaint,
-        );
-        break;
-      case 'onyx':
-        canvas.drawCircle(Offset(x + 2, y), radius * 0.3, _characterPaint);
-        canvas.drawCircle(Offset(x + 2, y), radius * 0.55, _characterPaint);
-        break;
-      case 'lumen':
-        for (var i = 0; i < 4; i++) {
-          final angle = i * math.pi / 2 + engine.elapsed * 0.6;
-          canvas.drawLine(
-            Offset(
-              x + 2 + math.cos(angle) * radius * 0.5,
-              y + math.sin(angle) * radius * 0.5,
-            ),
-            Offset(
-              x + 2 + math.cos(angle) * radius * 0.85,
-              y + math.sin(angle) * radius * 0.85,
-            ),
-            _characterPaint,
-          );
-        }
-        break;
+    if (_usesArrowHero) {
+      // NYX is the original starter: keep the forward arrow silhouette.
+      _arrowPaint.color = _playerBodyColors[dimension]!;
+      _arrowStrokePaint.color = _playerStrokeColor;
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.drawPath(_arrowBody, _arrowPaint);
+      canvas.drawPath(_arrowBody, _arrowStrokePaint);
+      canvas.restore();
+    } else {
+      final iconFill =
+          dimension.isLight ? _heroIconFillLight : _heroIconFillShadow;
+      _drawHeroIcon(
+        canvas,
+        Offset(x, y),
+        _heroIconStroke,
+        rotation: _iconRotation,
+      );
+      _drawHeroIcon(
+        canvas,
+        Offset(x, y),
+        iconFill,
+        rotation: _iconRotation,
+      );
     }
+    _skinPaint.color = options.skinId == 'spectrum' && !options.reducedMotion
+        ? _rainbow(engine.elapsed * 0.4)
+        : _skinColor;
+    canvas.drawCircle(Offset(x + 2, y), radius * 0.22, _skinPaint);
     if (engine.hasShield) {
       _shieldPaint.color = _shieldColor;
       canvas.drawCircle(Offset(x, y), radius * 1.7, _shieldPaint);
